@@ -496,6 +496,23 @@ function getHTML(): string {
       color: #2c3e50;
     }
 
+    .modal-section {
+      margin-bottom: 25px;
+    }
+
+    .modal-section:last-child {
+      margin-bottom: 0;
+    }
+
+    .modal-section-title {
+      font-size: 1.1rem;
+      font-weight: 700;
+      color: #2c3e50;
+      margin-bottom: 15px;
+      padding-bottom: 10px;
+      border-bottom: 2px solid #e9ecef;
+    }
+
     .modal-field {
       margin-bottom: 15px;
     }
@@ -873,13 +890,16 @@ function getHTML(): string {
 
       modalTitle.textContent = row.name || 'Train Car Details';
 
-      const fieldOrder = [
+      const carFields = [
         'vehicle_id',
         'name',
         'status',
         'delivery_date',
         'enter_service_date',
-        'notes',
+        'notes'
+      ];
+
+      const modelFields = [
         'model_common_name',
         'full_name',
         'manufacturer',
@@ -898,13 +918,13 @@ function getHTML(): string {
         full_name: 'Full Model Name',
         manufacturer: 'Manufacturer',
         manufacture_location: 'Manufacture Location',
-        years_manufactured: 'Years Manufactured',
-        batch_id: 'Batch ID'
+        years_manufactured: 'Years Manufactured'
       };
 
-      let html = '';
-      fieldOrder.forEach(key => {
-        if (!(key in row)) return; // Skip if field doesn't exist
+      let html = '<div class="modal-section"><h3 class="modal-section-title">Vehicle Details</h3>';
+
+      carFields.forEach(key => {
+        if (!(key in row)) return;
 
         let value = row[key];
 
@@ -931,6 +951,28 @@ function getHTML(): string {
           </div>
         \`;
       });
+
+      html += '</div><div class="modal-section"><h3 class="modal-section-title">Model Information</h3>';
+
+      modelFields.forEach(key => {
+        if (!(key in row)) return;
+
+        let value = row[key];
+
+        // Handle null values
+        if (value === null || value === undefined) {
+          value = '<em style="color: #adb5bd;">N/A</em>';
+        }
+
+        html += \`
+          <div class="modal-field">
+            <div class="modal-field-label">\${fieldLabels[key] || key}</div>
+            <div class="modal-field-value">\${value}</div>
+          </div>
+        \`;
+      });
+
+      html += '</div>';
 
       modalBody.innerHTML = html;
       modal.classList.add('active');
