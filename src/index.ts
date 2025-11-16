@@ -753,6 +753,11 @@ function getHTML(): string {
         columns.forEach(col => {
           let value = row[col];
 
+          // Format vehicle_id with leading zeros
+          if (col === 'vehicle_id' && value !== null && value !== undefined) {
+            value = String(value).padStart(3, '0');
+          }
+
           // Format status with badge
           if (col === 'status' && value) {
             const statusClass = \`status-\${value.toLowerCase().replace(/\\s+/g, '-')}\`;
@@ -850,6 +855,11 @@ function getHTML(): string {
       let html = '';
       Object.keys(row).forEach(key => {
         let value = row[key];
+
+        // Format vehicle_id with leading zeros
+        if (key === 'vehicle_id' && value !== null && value !== undefined) {
+          value = String(value).padStart(3, '0');
+        }
 
         // Format status with badge
         if (key === 'status' && value) {
