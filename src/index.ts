@@ -884,8 +884,7 @@ function getHTML(): string {
         'full_name',
         'manufacturer',
         'manufacture_location',
-        'years_manufactured',
-        'batch_id'
+        'years_manufactured'
       ];
 
       const fieldLabels = {
