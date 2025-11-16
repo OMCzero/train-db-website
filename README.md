@@ -6,9 +6,11 @@ A responsive web application built with Cloudflare Workers and Hyperdrive to dis
 
 - **Real-time Database Access**: Connects to PostgreSQL via Cloudflare Hyperdrive for low-latency queries
 - **Responsive Design**: Beautiful, mobile-friendly interface that works on all devices
-- **Full-Text Search**: Search across all fields (ID, car number, type, manufacturer, year, status)
+- **Full-Text Search**: Search across all fields including vehicle ID, name, status, model, and notes
+- **Model Information**: Displays train model details from the train_models table
 - **Pagination**: Navigate through large datasets efficiently (50 records per page)
-- **Status Badges**: Color-coded status indicators (Active, Maintenance, Retired)
+- **Status Badges**: Color-coded status indicators (In Service, In Testing, Retired, etc.)
+- **Interactive Details**: Click any row to view complete vehicle and model information
 - **Error Handling**: Graceful error messages and loading states
 
 ## Architecture
