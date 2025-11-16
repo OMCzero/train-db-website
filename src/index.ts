@@ -4,21 +4,38 @@ interface Env {
   HYPERDRIVE: Hyperdrive;
 }
 
+// Helper function to add security headers to responses
+function addSecurityHeaders(response: Response): Response {
+  const headers = new Headers(response.headers);
+  headers.set("X-Content-Type-Options", "nosniff");
+  headers.set("X-Frame-Options", "DENY");
+  headers.set("X-XSS-Protection", "1; mode=block");
+  headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
+
+  return new Response(response.body, {
+    status: response.status,
+    statusText: response.statusText,
+    headers,
+  });
+}
+
 export default {
   async fetch(request: Request, env: Env, ctx: ExecutionContext): Promise<Response> {
     const url = new URL(request.url);
 
     // API endpoint to get train cars data
     if (url.pathname === "/api/train-cars") {
-      return await getTrainCars(env, ctx, url.searchParams);
+      const response = await getTrainCars(env, ctx, url.searchParams);
+      return addSecurityHeaders(response);
     }
 
     // Serve the HTML frontend for all other routes
-    return new Response(getHTML(), {
+    const response = new Response(getHTML(), {
       headers: {
         "Content-Type": "text/html; charset=utf-8",
       },
     });
+    return addSecurityHeaders(response);
   },
 };
 
@@ -30,8 +47,9 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
 
     // Build query with optional filters
     const search = searchParams.get("search") || "";
-    const limit = parseInt(searchParams.get("limit") || "50");
-    const offset = parseInt(searchParams.get("offset") || "0");
+    // Validate and constrain limit and offset parameters
+    const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50"), 1), 100);
+    const offset = Math.max(parseInt(searchParams.get("offset") || "0"), 0);
 
     let query = `SELECT
       tc.vehicle_id,
@@ -89,8 +107,11 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
     });
   } catch (e) {
     ctx.waitUntil(client.end());
+    // Log detailed error for debugging (available in Cloudflare dashboard)
+    console.error("Database error:", e);
+    // Return generic error message to client to prevent information disclosure
     return Response.json(
-      { error: e instanceof Error ? e.message : String(e) },
+      { error: "An error occurred while fetching train cars data. Please try again later." },
       { status: 500 }
     );
   }
