@@ -297,39 +297,39 @@ function getHTML(): string {
       text-overflow: ellipsis;
     }
 
-    /* Specific column widths */
-    th:nth-child(1), td:nth-child(1) { /* vehicle_id */
+    /* Specific column widths using data attributes */
+    th[data-column="vehicle_id"], td[data-column="vehicle_id"] {
       width: 100px;
       white-space: nowrap;
     }
 
-    th:nth-child(2), td:nth-child(2) { /* model_common_name */
+    th[data-column="model_common_name"], td[data-column="model_common_name"] {
       width: 150px;
       white-space: nowrap;
     }
 
-    th:nth-child(3), td:nth-child(3) { /* name */
+    th[data-column="name"], td[data-column="name"] {
       min-width: 200px;
       max-width: 300px;
       white-space: nowrap;
     }
 
-    th:nth-child(4), td:nth-child(4) { /* status */
+    th[data-column="status"], td[data-column="status"] {
       width: 130px;
       white-space: nowrap;
     }
 
-    th:nth-child(5), td:nth-child(5) { /* delivery_date */
+    th[data-column="delivery_date"], td[data-column="delivery_date"] {
       width: 120px;
       white-space: nowrap;
     }
 
-    th:nth-child(6), td:nth-child(6) { /* enter_service_date */
+    th[data-column="enter_service_date"], td[data-column="enter_service_date"] {
       width: 140px;
       white-space: nowrap;
     }
 
-    th:nth-child(7), td:nth-child(7) { /* notes */
+    th[data-column="notes"], td[data-column="notes"] {
       min-width: 200px;
       max-width: 400px;
       white-space: normal;
@@ -613,21 +613,21 @@ function getHTML(): string {
       }
 
       /* Hide some columns on mobile for better layout */
-      th:nth-child(5), td:nth-child(5), /* delivery_date */
-      th:nth-child(6), td:nth-child(6) { /* enter_service_date */
+      th[data-column="delivery_date"], td[data-column="delivery_date"],
+      th[data-column="enter_service_date"], td[data-column="enter_service_date"] {
         display: none;
       }
 
-      th:nth-child(7), td:nth-child(7) { /* notes */
+      th[data-column="notes"], td[data-column="notes"] {
         max-width: 150px;
       }
 
       /* Shorten column headers on mobile */
-      th:nth-child(1) {
+      th[data-column="vehicle_id"] {
         font-size: 0;
         line-height: 0;
       }
-      th:nth-child(1)::after {
+      th[data-column="vehicle_id"]::after {
         content: 'ID';
         font-size: 0.95rem;
         line-height: normal;
@@ -768,7 +768,7 @@ function getHTML(): string {
       let html = '<table><thead><tr>';
       tableColumns.forEach(col => {
         const label = columnLabels[col] || col.replace(/_/g, ' ').toUpperCase();
-        html += \`<th>\${label}</th>\`;
+        html += \`<th data-column="\${col}">\${label}</th>\`;
       });
       html += '</tr></thead><tbody>';
 
@@ -793,7 +793,7 @@ function getHTML(): string {
             value = '<em style="color: #adb5bd;">N/A</em>';
           }
 
-          html += \`<td>\${value}</td>\`;
+          html += \`<td data-column="\${col}">\${value}</td>\`;
         });
         html += '</tr>';
       });
