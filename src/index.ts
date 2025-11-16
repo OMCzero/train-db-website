@@ -1214,7 +1214,10 @@ function getHTML(): string {
     // Enable Enter key for search
     document.getElementById('searchInput').addEventListener('keypress', (e) => {
       if (e.key === 'Enter') {
+        e.preventDefault();
         loadData(0);
+        // Blur the input to dismiss the keyboard on mobile
+        e.target.blur();
       }
     });
   </script>
