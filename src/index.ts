@@ -585,28 +585,26 @@ function getHTML(): string {
       text-align: left;
       padding: 12px;
       border-radius: 8px;
-      position: absolute;
+      position: fixed;
       z-index: 1001;
-      bottom: 125%;
-      left: 50%;
-      margin-left: -150px;
       opacity: 0;
       transition: opacity 0.3s;
       font-size: 0.85rem;
       line-height: 1.4;
       font-weight: normal;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+      pointer-events: none;
     }
 
     .info-icon .tooltip-text::after {
       content: "";
       position: absolute;
-      top: 100%;
-      left: 50%;
-      margin-left: -5px;
+      top: 50%;
+      right: 100%;
+      margin-top: -5px;
       border-width: 5px;
       border-style: solid;
-      border-color: #2c3e50 transparent transparent transparent;
+      border-color: transparent #2c3e50 transparent transparent;
     }
 
     .info-icon:hover .tooltip-text {
@@ -1074,6 +1072,46 @@ function getHTML(): string {
       modal.classList.remove('active');
       document.body.style.overflow = '';
     }
+
+    // Tooltip positioning
+    function positionTooltip(iconElement, tooltipElement) {
+      const iconRect = iconElement.getBoundingClientRect();
+      const tooltipWidth = 300;
+      const spacing = 10;
+
+      // Position to the right of the icon by default
+      let left = iconRect.right + spacing;
+      let top = iconRect.top + (iconRect.height / 2);
+
+      // If tooltip would go off the right edge, position it to the left
+      if (left + tooltipWidth > window.innerWidth) {
+        left = iconRect.left - tooltipWidth - spacing;
+      }
+
+      // Make sure tooltip doesn't go off the top
+      if (top < spacing) {
+        top = spacing;
+      }
+
+      // Make sure tooltip doesn't go off the bottom
+      const tooltipHeight = tooltipElement.offsetHeight || 150; // estimate
+      if (top + tooltipHeight > window.innerHeight - spacing) {
+        top = window.innerHeight - tooltipHeight - spacing;
+      }
+
+      tooltipElement.style.left = left + 'px';
+      tooltipElement.style.top = top + 'px';
+    }
+
+    // Set up tooltip positioning on hover
+    document.addEventListener('mouseover', (e) => {
+      if (e.target.classList.contains('info-icon')) {
+        const tooltip = e.target.querySelector('.tooltip-text');
+        if (tooltip) {
+          positionTooltip(e.target, tooltip);
+        }
+      }
+    });
 
     // Load initial data
     loadData();
