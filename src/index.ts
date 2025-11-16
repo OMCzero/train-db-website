@@ -1079,9 +1079,16 @@ function getHTML(): string {
       const tooltipWidth = 300;
       const spacing = 10;
 
+      // Make tooltip visible temporarily to get its height
+      tooltipElement.style.visibility = 'visible';
+      tooltipElement.style.opacity = '0';
+      tooltipElement.style.display = 'block';
+      const tooltipHeight = tooltipElement.offsetHeight;
+      tooltipElement.style.display = '';
+
       // Position to the right of the icon by default
       let left = iconRect.right + spacing;
-      let top = iconRect.top + (iconRect.height / 2);
+      let top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
 
       // If tooltip would go off the right edge, position it to the left
       if (left + tooltipWidth > window.innerWidth) {
@@ -1094,7 +1101,6 @@ function getHTML(): string {
       }
 
       // Make sure tooltip doesn't go off the bottom
-      const tooltipHeight = tooltipElement.offsetHeight || 150; // estimate
       if (top + tooltipHeight > window.innerHeight - spacing) {
         top = window.innerHeight - tooltipHeight - spacing;
       }
