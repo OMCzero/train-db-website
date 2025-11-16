@@ -40,6 +40,7 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
 
     if (search) {
       const whereClause = " WHERE " +
+        "LPAD(CAST(vehicle_id AS TEXT), 3, '0') ILIKE $1 OR " +
         "CAST(vehicle_id AS TEXT) ILIKE $1 OR " +
         "name ILIKE $1 OR " +
         "CAST(status AS TEXT) ILIKE $1 OR " +
@@ -717,11 +718,6 @@ function getHTML(): string {
       if (data.length === 0) {
         document.getElementById('content').innerHTML = \`
           <div class="empty-state">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
-              <circle cx="12" cy="12" r="10"></circle>
-              <line x1="12" y1="8" x2="12" y2="12"></line>
-              <line x1="12" y1="16" x2="12.01" y2="16"></line>
-            </svg>
             <h2>No train cars found</h2>
             <p>Try adjusting your search criteria</p>
           </div>
