@@ -3,6 +3,7 @@
   "name": "train-db-viewer",
   "main": "src/index.ts",
   "compatibility_date": "2025-02-04",
+  "preview_urls": true,
   "observability": {
     "enabled": true
   },
