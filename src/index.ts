@@ -1137,8 +1137,17 @@ function getHTML(): string {
       tooltipElement.classList.add('visible');
     }
 
-    // Set up tooltip positioning on hover
+    // Track if we're using touch (mobile) or mouse (desktop)
+    let isTouchDevice = false;
+
+    // Detect touch device
+    document.addEventListener('touchstart', function() {
+      isTouchDevice = true;
+    }, { once: true });
+
+    // Set up tooltip positioning on hover (desktop only)
     document.addEventListener('mouseover', (e) => {
+      if (isTouchDevice) return; // Skip on touch devices
       if (e.target.classList.contains('info-icon')) {
         const tooltip = e.target.querySelector('.tooltip-text');
         if (tooltip) {
@@ -1147,8 +1156,9 @@ function getHTML(): string {
       }
     });
 
-    // Hide tooltip on mouseout
+    // Hide tooltip on mouseout (desktop only)
     document.addEventListener('mouseout', (e) => {
+      if (isTouchDevice) return; // Skip on touch devices
       if (e.target.classList.contains('info-icon')) {
         const tooltip = e.target.querySelector('.tooltip-text');
         if (tooltip) {
@@ -1157,16 +1167,16 @@ function getHTML(): string {
       }
     });
 
-    // Prevent modal from opening when clicking tooltip icon (for mobile)
+    // Handle clicks on info icon
     document.addEventListener('click', (e) => {
       if (e.target.classList.contains('info-icon') || e.target.closest('.info-icon')) {
         e.stopPropagation();
         e.preventDefault();
 
-        // Show tooltip on mobile tap
+        // On mobile, toggle tooltip
         const icon = e.target.classList.contains('info-icon') ? e.target : e.target.closest('.info-icon');
         const tooltip = icon.querySelector('.tooltip-text');
-        if (tooltip) {
+        if (tooltip && isTouchDevice) {
           if (tooltip.classList.contains('visible')) {
             tooltip.classList.remove('visible');
           } else {
@@ -1175,6 +1185,14 @@ function getHTML(): string {
         }
       }
     }, true);
+
+    // Close tooltip when clicking outside (mobile)
+    document.addEventListener('click', (e) => {
+      if (isTouchDevice && !e.target.classList.contains('info-icon') && !e.target.closest('.info-icon')) {
+        const visibleTooltips = document.querySelectorAll('.tooltip-text.visible');
+        visibleTooltips.forEach(tooltip => tooltip.classList.remove('visible'));
+      }
+    });
 
     // Load initial data
     loadData();
