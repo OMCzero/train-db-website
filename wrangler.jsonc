@@ -1,0 +1,24 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "train-db-viewer",
+  "main": "src/index.ts",
+  "compatibility_date": "2025-02-04",
+  "observability": {
+    "enabled": true
+  },
+  "compatibility_flags": [
+    "nodejs_compat"
+  ],
+  "hyperdrive": [
+    {
+      "binding": "HYPERDRIVE",
+      "id": "0aaa4c6875b64d9ebbafda4ca364eefb"
+    }
+  ],
+  "routes": [
+    {
+      "pattern": "traindb.omczero.com",
+      "custom_domain": true
+    }
+  ]
+}

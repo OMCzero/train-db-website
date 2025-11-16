@@ -1,0 +1,26 @@
+{
+  "name": "train-db-viewer",
+  "version": "1.0.0",
+  "description": "Cloudflare Worker to serve train_cars database via Hyperdrive",
+  "main": "src/index.ts",
+  "scripts": {
+    "dev": "wrangler dev",
+    "deploy": "wrangler deploy"
+  },
+  "keywords": [
+    "cloudflare",
+    "worker",
+    "hyperdrive",
+    "postgres"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "@cloudflare/workers-types": "^4.20241127.0",
+    "typescript": "^5.7.2",
+    "wrangler": "^4.47.0"
+  },
+  "dependencies": {
+    "pg": "^8.13.1"
+  }
+}
