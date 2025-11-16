@@ -30,11 +30,11 @@ export default {
       const referer = request.headers.get("Referer");
       const host = request.headers.get("Host") || url.host;
 
-      // Allow requests from same origin or with our referer
-      const isValidOrigin = !origin || origin === `https://${host}` || origin === `http://${host}`;
-      const isValidReferer = !referer || referer.startsWith(`https://${host}/`) || referer.startsWith(`http://${host}/`);
+      // If Origin or Referer is present, it must be from our domain
+      const hasInvalidOrigin = origin && origin !== `https://${host}` && origin !== `http://${host}`;
+      const hasInvalidReferer = referer && !referer.startsWith(`https://${host}/`) && !referer.startsWith(`http://${host}/`);
 
-      if (!isValidOrigin && !isValidReferer) {
+      if (hasInvalidOrigin || hasInvalidReferer) {
         const response = Response.json(
           { error: "Unauthorized: API can only be called from this website." },
           { status: 403 }
