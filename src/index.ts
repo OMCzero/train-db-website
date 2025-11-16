@@ -271,6 +271,7 @@ function getHTML(): string {
       width: 100%;
       border-collapse: collapse;
       background: white;
+      overflow: visible;
     }
 
     thead {
@@ -301,6 +302,8 @@ function getHTML(): string {
     th[data-column="vehicle_id"], td[data-column="vehicle_id"] {
       width: 100px;
       white-space: nowrap;
+      overflow: visible;
+      position: relative;
     }
 
     th[data-column="model_common_name"], td[data-column="model_common_name"] {
