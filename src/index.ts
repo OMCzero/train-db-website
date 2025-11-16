@@ -866,7 +866,7 @@ function getHTML(): string {
           if (col === 'vehicle_id' && value !== null && value !== undefined) {
             const formattedId = String(value).padStart(3, '0');
             if (formattedId.startsWith('6')) {
-              value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon"><span class="tooltip-text">Mark V trains use a special numbering system. The control system assumes cars come in pairs (odd/even), but Mark V has 5 cars. So train 602 (pair 601/602) has vehicles 6011, 6022, 6023, 6024, 6025. Only one vehicle uses the odd number (ending in 1), while the other four use the even number with incrementing digits.</span></span></span>\`;
+              value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
             } else {
               value = formattedId;
             }
@@ -1005,7 +1005,7 @@ function getHTML(): string {
         if (key === 'vehicle_id' && value !== null && value !== undefined) {
           const formattedId = String(value).padStart(3, '0');
           if (formattedId.startsWith('6')) {
-            value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon"><span class="tooltip-text">Mark V trains use a special numbering system. The control system assumes cars come in pairs (odd/even), but Mark V has 5 cars. So train 602 (pair 601/602) has vehicles 6011, 6022, 6023, 6024, 6025. Only one vehicle uses the odd number (ending in 1), while the other four use the even number with incrementing digits.</span></span></span>\`;
+            value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
           } else {
             value = formattedId;
           }
@@ -1076,11 +1076,34 @@ function getHTML(): string {
       document.body.style.overflow = '';
     }
 
+    // Generate tooltip text for Mark V trains
+    function getMarkVTooltipText(trainId) {
+      // Determine the pair number (odd/even)
+      const isEven = parseInt(trainId) % 2 === 0;
+      const pairOdd = isEven ? trainId - 1 : trainId;
+      const pairEven = isEven ? trainId : parseInt(trainId) + 1;
+
+      // Generate vehicle numbers
+      const vehicle1 = \`\${pairOdd}1\`;
+      const vehicle2 = \`\${pairEven}2\`;
+      const vehicle3 = \`\${pairEven}3\`;
+      const vehicle4 = \`\${pairEven}4\`;
+      const vehicle5 = \`\${pairEven}5\`;
+
+      return \`Mark V trains have 5 cars but the control system treats them as 2-car pairs. Train \${trainId} (pair \${pairOdd}/\${pairEven}) has cars \${vehicle1}, \${vehicle2}, \${vehicle3}, \${vehicle4}, and \${vehicle5}.\`;
+    }
+
     // Tooltip positioning
     function positionTooltip(iconElement, tooltipElement) {
       const iconRect = iconElement.getBoundingClientRect();
       const tooltipWidth = 300;
       const spacing = 10;
+
+      // Set tooltip text based on train ID
+      const trainId = iconElement.getAttribute('data-train-id');
+      if (trainId) {
+        tooltipElement.textContent = getMarkVTooltipText(trainId);
+      }
 
       // Make tooltip visible temporarily to get its height
       tooltipElement.style.display = 'block';
