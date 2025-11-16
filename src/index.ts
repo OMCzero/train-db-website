@@ -722,6 +722,11 @@ function getHTML(): string {
       #pageInfo {
         display: none;
       }
+
+      /* Reduce tooltip width on mobile */
+      .info-icon .tooltip-text {
+        width: 240px;
+      }
     }
   </style>
 </head>
@@ -1096,7 +1101,8 @@ function getHTML(): string {
     // Tooltip positioning
     function positionTooltip(iconElement, tooltipElement) {
       const iconRect = iconElement.getBoundingClientRect();
-      const tooltipWidth = 300;
+      const isMobile = window.innerWidth <= 768;
+      const tooltipWidth = isMobile ? 240 : 300;
       const spacing = 10;
 
       // Set tooltip text based on train ID
