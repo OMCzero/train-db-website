@@ -25,6 +25,23 @@ export default {
 
     // API endpoint to get train cars data
     if (url.pathname === "/api/train-cars") {
+      // Validate that the request comes from our own domain
+      const origin = request.headers.get("Origin");
+      const referer = request.headers.get("Referer");
+      const host = request.headers.get("Host") || url.host;
+
+      // Allow requests from same origin or with our referer
+      const isValidOrigin = !origin || origin === `https://${host}` || origin === `http://${host}`;
+      const isValidReferer = !referer || referer.startsWith(`https://${host}/`) || referer.startsWith(`http://${host}/`);
+
+      if (!isValidOrigin && !isValidReferer) {
+        const response = Response.json(
+          { error: "Unauthorized: API can only be called from this website." },
+          { status: 403 }
+        );
+        return addSecurityHeaders(response);
+      }
+
       const response = await getTrainCars(env, ctx, url.searchParams);
       return addSecurityHeaders(response);
     }
