@@ -594,6 +594,9 @@ function getHTML(): string {
       font-weight: normal;
       box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
       pointer-events: none;
+      word-wrap: break-word;
+      white-space: normal;
+      overflow-wrap: break-word;
     }
 
     .info-icon .tooltip-text.visible {
