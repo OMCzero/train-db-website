@@ -1109,12 +1109,16 @@ function getHTML(): string {
       tooltipElement.style.display = 'block';
       const tooltipHeight = tooltipElement.offsetHeight;
 
+      // Check if we're inside a modal
+      const isInModal = iconElement.closest('.modal');
+
       // Position to the right of the icon by default
       let left = iconRect.right + spacing;
       let top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
 
-      // If tooltip would go off the right edge, position it to the left
-      if (left + tooltipWidth > window.innerWidth) {
+      // If in modal, always show on the right (don't flip to left)
+      // Otherwise, flip to left if it would go off the right edge
+      if (!isInModal && left + tooltipWidth > window.innerWidth) {
         left = iconRect.left - tooltipWidth - spacing;
       }
 
@@ -1152,6 +1156,25 @@ function getHTML(): string {
         }
       }
     });
+
+    // Prevent modal from opening when clicking tooltip icon (for mobile)
+    document.addEventListener('click', (e) => {
+      if (e.target.classList.contains('info-icon') || e.target.closest('.info-icon')) {
+        e.stopPropagation();
+        e.preventDefault();
+
+        // Show tooltip on mobile tap
+        const icon = e.target.classList.contains('info-icon') ? e.target : e.target.closest('.info-icon');
+        const tooltip = icon.querySelector('.tooltip-text');
+        if (tooltip) {
+          if (tooltip.classList.contains('visible')) {
+            tooltip.classList.remove('visible');
+          } else {
+            positionTooltip(icon, tooltip);
+          }
+        }
+      }
+    }, true);
 
     // Load initial data
     loadData();
