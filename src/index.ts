@@ -1216,8 +1216,10 @@ function getHTML(): string {
       if (e.key === 'Enter') {
         e.preventDefault();
         loadData(0);
-        // Blur the input to dismiss the keyboard on mobile
-        e.target.blur();
+        // Blur the input to dismiss the keyboard on mobile only
+        if (isTouchDevice) {
+          e.target.blur();
+        }
       }
     });
   </script>
