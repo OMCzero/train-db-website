@@ -33,27 +33,42 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
     const limit = parseInt(searchParams.get("limit") || "50");
     const offset = parseInt(searchParams.get("offset") || "0");
 
-    let query = "SELECT vehicle_id, name, status, delivery_date, enter_service_date, batch_id, notes FROM train_cars";
-    let countQuery = "SELECT COUNT(*) as total FROM train_cars";
+    let query = `SELECT
+      tc.vehicle_id,
+      tc.name,
+      tc.status,
+      tc.delivery_date,
+      tc.enter_service_date,
+      tc.batch_id,
+      tc.notes,
+      tm.common_name as model_common_name,
+      tm.manufacturer,
+      tm.model_number,
+      tm.production_years,
+      tm.lines_operated
+    FROM train_cars tc
+    LEFT JOIN train_models tm ON tc.batch_id = tm.batch_id`;
+    let countQuery = "SELECT COUNT(*) as total FROM train_cars tc";
     const lastUpdatedQuery = "SELECT last_autoanalyze FROM pg_stat_user_tables WHERE relname = 'train_cars'";
     const params: any[] = [];
 
     if (search) {
       const whereClause = " WHERE " +
-        "LPAD(CAST(vehicle_id AS TEXT), 3, '0') ILIKE $1 OR " +
-        "CAST(vehicle_id AS TEXT) ILIKE $1 OR " +
-        "name ILIKE $1 OR " +
-        "CAST(status AS TEXT) ILIKE $1 OR " +
-        "delivery_date ILIKE $1 OR " +
-        "enter_service_date ILIKE $1 OR " +
-        "notes ILIKE $1";
+        "LPAD(CAST(tc.vehicle_id AS TEXT), 3, '0') ILIKE $1 OR " +
+        "CAST(tc.vehicle_id AS TEXT) ILIKE $1 OR " +
+        "tc.name ILIKE $1 OR " +
+        "CAST(tc.status AS TEXT) ILIKE $1 OR " +
+        "tc.delivery_date ILIKE $1 OR " +
+        "tc.enter_service_date ILIKE $1 OR " +
+        "tc.notes ILIKE $1 OR " +
+        "tm.common_name ILIKE $1";
 
       query += whereClause;
-      countQuery += whereClause;
+      countQuery += " LEFT JOIN train_models tm ON tc.batch_id = tm.batch_id" + whereClause;
       params.push(`%${search}%`);
     }
 
-    query += ` ORDER BY vehicle_id LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    query += ` ORDER BY tc.vehicle_id LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
 
     // Execute queries
     const [dataResult, countResult, lastUpdatedResult] = await Promise.all([
@@ -288,29 +303,29 @@ function getHTML(): string {
       white-space: nowrap;
     }
 
-    th:nth-child(2), td:nth-child(2) { /* name */
+    th:nth-child(2), td:nth-child(2) { /* model_common_name */
+      width: 150px;
+      white-space: nowrap;
+    }
+
+    th:nth-child(3), td:nth-child(3) { /* name */
       min-width: 200px;
       max-width: 300px;
       white-space: nowrap;
     }
 
-    th:nth-child(3), td:nth-child(3) { /* status */
+    th:nth-child(4), td:nth-child(4) { /* status */
       width: 130px;
       white-space: nowrap;
     }
 
-    th:nth-child(4), td:nth-child(4) { /* delivery_date */
+    th:nth-child(5), td:nth-child(5) { /* delivery_date */
       width: 120px;
       white-space: nowrap;
     }
 
-    th:nth-child(5), td:nth-child(5) { /* enter_service_date */
+    th:nth-child(6), td:nth-child(6) { /* enter_service_date */
       width: 140px;
-      white-space: nowrap;
-    }
-
-    th:nth-child(6), td:nth-child(6) { /* batch_id */
-      width: 100px;
       white-space: nowrap;
     }
 
@@ -507,6 +522,14 @@ function getHTML(): string {
       margin-top: 5px;
     }
 
+    .desktop-hint {
+      display: block;
+      font-size: 0.85rem;
+      color: #6c757d;
+      font-style: italic;
+      margin-top: 5px;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -580,15 +603,18 @@ function getHTML(): string {
         background: #e9ecef;
       }
 
-      /* Show mobile hint */
+      /* Show mobile hint, hide desktop hint */
       .mobile-hint {
         display: block;
       }
 
+      .desktop-hint {
+        display: none;
+      }
+
       /* Hide some columns on mobile for better layout */
-      th:nth-child(4), td:nth-child(4), /* delivery_date */
-      th:nth-child(5), td:nth-child(5), /* enter_service_date */
-      th:nth-child(6), td:nth-child(6) { /* batch_id */
+      th:nth-child(5), td:nth-child(5), /* delivery_date */
+      th:nth-child(6), td:nth-child(6) { /* enter_service_date */
         display: none;
       }
 
@@ -639,6 +665,7 @@ function getHTML(): string {
         <div class="stats-info" id="statsInfo"></div>
         <div class="last-updated" id="lastUpdated"></div>
         <div class="mobile-hint">Tap any row to view full details</div>
+        <div class="desktop-hint">Click any row to view full details</div>
       </div>
       <div class="pagination">
         <button class="btn btn-primary" id="prevBtn" onclick="prevPage()">← Previous</button>
@@ -725,20 +752,21 @@ function getHTML(): string {
         return;
       }
 
-      const columns = Object.keys(data[0]);
+      // Define which columns to show in the table
+      const tableColumns = ['vehicle_id', 'model_common_name', 'name', 'status', 'delivery_date', 'enter_service_date', 'notes'];
 
       const columnLabels = {
         vehicle_id: 'VEHICLE ID',
+        model_common_name: 'MODEL',
         name: 'NAME',
         status: 'STATUS',
         delivery_date: 'DELIVERY DATE',
         enter_service_date: 'ENTERED SERVICE',
-        batch_id: 'BATCH ID',
         notes: 'NOTES'
       };
 
       let html = '<table><thead><tr>';
-      columns.forEach(col => {
+      tableColumns.forEach(col => {
         const label = columnLabels[col] || col.replace(/_/g, ' ').toUpperCase();
         html += \`<th>\${label}</th>\`;
       });
@@ -746,7 +774,7 @@ function getHTML(): string {
 
       data.forEach((row, index) => {
         html += \`<tr onclick="openModal(\${index})">\`;
-        columns.forEach(col => {
+        tableColumns.forEach(col => {
           let value = row[col];
 
           // Format vehicle_id with leading zeros
@@ -845,18 +873,40 @@ function getHTML(): string {
 
       modalTitle.textContent = row.name || 'Train Car Details';
 
+      const fieldOrder = [
+        'vehicle_id',
+        'name',
+        'status',
+        'delivery_date',
+        'enter_service_date',
+        'notes',
+        'model_common_name',
+        'manufacturer',
+        'model_number',
+        'production_years',
+        'lines_operated',
+        'batch_id'
+      ];
+
       const fieldLabels = {
         vehicle_id: 'Vehicle ID',
         name: 'Name',
         status: 'Status',
         delivery_date: 'Delivery Date',
         enter_service_date: 'Entered Service',
-        batch_id: 'Batch ID',
-        notes: 'Notes'
+        notes: 'Notes',
+        model_common_name: 'Model',
+        manufacturer: 'Manufacturer',
+        model_number: 'Model Number',
+        production_years: 'Production Years',
+        lines_operated: 'Lines Operated',
+        batch_id: 'Batch ID'
       };
 
       let html = '';
-      Object.keys(row).forEach(key => {
+      fieldOrder.forEach(key => {
+        if (!(key in row)) return; // Skip if field doesn't exist
+
         let value = row[key];
 
         // Format vehicle_id with leading zeros
