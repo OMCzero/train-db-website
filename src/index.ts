@@ -976,11 +976,12 @@ function getHTML(): string {
 
       modalBody.innerHTML = html;
 
-      // Reset scroll position to top
+      // Reset scroll position to top for both possible scroll containers
       const modalContent = modal.querySelector('.modal-content');
       if (modalContent) {
         modalContent.scrollTop = 0;
       }
+      modalBody.scrollTop = 0;
 
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
