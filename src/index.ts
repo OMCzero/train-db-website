@@ -547,6 +547,70 @@ function getHTML(): string {
       margin-top: 5px;
     }
 
+    /* Tooltip styles */
+    .info-tooltip {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+    }
+
+    .info-icon {
+      display: inline-block;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #3498db;
+      color: white;
+      font-size: 12px;
+      font-weight: bold;
+      text-align: center;
+      line-height: 16px;
+      cursor: help;
+      position: relative;
+    }
+
+    .info-icon::before {
+      content: 'i';
+      font-style: normal;
+    }
+
+    .info-icon .tooltip-text {
+      visibility: hidden;
+      width: 300px;
+      background-color: #2c3e50;
+      color: white;
+      text-align: left;
+      padding: 12px;
+      border-radius: 8px;
+      position: absolute;
+      z-index: 1001;
+      bottom: 125%;
+      left: 50%;
+      margin-left: -150px;
+      opacity: 0;
+      transition: opacity 0.3s;
+      font-size: 0.85rem;
+      line-height: 1.4;
+      font-weight: normal;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.3);
+    }
+
+    .info-icon .tooltip-text::after {
+      content: "";
+      position: absolute;
+      top: 100%;
+      left: 50%;
+      margin-left: -5px;
+      border-width: 5px;
+      border-style: solid;
+      border-color: #2c3e50 transparent transparent transparent;
+    }
+
+    .info-icon:hover .tooltip-text {
+      visibility: visible;
+      opacity: 1;
+    }
+
     @keyframes fadeIn {
       from { opacity: 0; }
       to { opacity: 1; }
@@ -794,9 +858,14 @@ function getHTML(): string {
         tableColumns.forEach(col => {
           let value = row[col];
 
-          // Format vehicle_id with leading zeros
+          // Format vehicle_id with leading zeros and add tooltip for Mark V (6xx series)
           if (col === 'vehicle_id' && value !== null && value !== undefined) {
-            value = String(value).padStart(3, '0');
+            const formattedId = String(value).padStart(3, '0');
+            if (formattedId.startsWith('6')) {
+              value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon"><span class="tooltip-text">Mark V trains use a special numbering system. The control system assumes cars come in pairs (odd/even), but Mark V has 5 cars. So train 602 (pair 601/602) has vehicles 6011, 6022, 6023, 6024, 6025. Only one vehicle uses the odd number (ending in 1), while the other four use the even number with incrementing digits.</span></span></span>\`;
+            } else {
+              value = formattedId;
+            }
           }
 
           // Format status with badge
@@ -928,9 +997,14 @@ function getHTML(): string {
 
         let value = row[key];
 
-        // Format vehicle_id with leading zeros
+        // Format vehicle_id with leading zeros and add tooltip for Mark V (6xx series)
         if (key === 'vehicle_id' && value !== null && value !== undefined) {
-          value = String(value).padStart(3, '0');
+          const formattedId = String(value).padStart(3, '0');
+          if (formattedId.startsWith('6')) {
+            value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon"><span class="tooltip-text">Mark V trains use a special numbering system. The control system assumes cars come in pairs (odd/even), but Mark V has 5 cars. So train 602 (pair 601/602) has vehicles 6011, 6022, 6023, 6024, 6025. Only one vehicle uses the odd number (ending in 1), while the other four use the even number with incrementing digits.</span></span></span>\`;
+          } else {
+            value = formattedId;
+          }
         }
 
         // Format status with badge
