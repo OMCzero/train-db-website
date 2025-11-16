@@ -780,8 +780,15 @@ function getHTML(): string {
       const totalPages = Math.ceil(totalRecords / pageSize);
 
       document.getElementById('stats').style.display = 'flex';
-      document.getElementById('statsInfo').textContent =
-        \`Showing \${start} to \${end} of \${totalRecords} train cars\${currentSearch ? \` (filtered)\` : ''}\`;
+
+      if (currentSearch) {
+        document.getElementById('statsInfo').textContent =
+          \`Showing \${totalRecords} train cars (filtered)\`;
+      } else {
+        document.getElementById('statsInfo').textContent =
+          \`Showing \${start} to \${end} of \${totalRecords} train cars\`;
+      }
+
       document.getElementById('pageInfo').textContent =
         \`Page \${currentPage + 1} of \${totalPages || 1}\`;
 
