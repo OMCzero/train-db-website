@@ -43,9 +43,9 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
       tc.notes,
       tm.common_name as model_common_name,
       tm.manufacturer,
-      tm.model_number,
-      tm.production_years,
-      tm.lines_operated
+      tm.manufacture_location,
+      tm.years_manufactured,
+      tm.full_name
     FROM train_cars tc
     LEFT JOIN train_models tm ON tc.batch_id = tm.batch_id`;
     let countQuery = "SELECT COUNT(*) as total FROM train_cars tc";
@@ -881,10 +881,10 @@ function getHTML(): string {
         'enter_service_date',
         'notes',
         'model_common_name',
+        'full_name',
         'manufacturer',
-        'model_number',
-        'production_years',
-        'lines_operated',
+        'manufacture_location',
+        'years_manufactured',
         'batch_id'
       ];
 
@@ -896,10 +896,10 @@ function getHTML(): string {
         enter_service_date: 'Entered Service',
         notes: 'Notes',
         model_common_name: 'Model',
+        full_name: 'Full Model Name',
         manufacturer: 'Manufacturer',
-        model_number: 'Model Number',
-        production_years: 'Production Years',
-        lines_operated: 'Lines Operated',
+        manufacture_location: 'Manufacture Location',
+        years_manufactured: 'Years Manufactured',
         batch_id: 'Batch ID'
       };
 
