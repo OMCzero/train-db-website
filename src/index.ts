@@ -1095,7 +1095,7 @@ function getHTML(): string {
       const vehicle4 = \`\${pairEven}4\`;
       const vehicle5 = \`\${pairEven}5\`;
 
-      return \`Mark V trains have 5 cars but the control system treats them as 2-car pairs. Train \${trainId} (pair \${pairOdd}/\${pairEven}) has cars \${vehicle1}, \${vehicle2}, \${vehicle3}, \${vehicle4}, and \${vehicle5}.\`;
+      return \`Mark V trains have 5 cars but vehicle control computers (VCCs) treat them as 2-car pairs. Train \${trainId} (pair \${pairOdd}/\${pairEven}) has cars \${vehicle1}, \${vehicle2}, \${vehicle3}, \${vehicle4}, and \${vehicle5}.\`;
     }
 
     // Tooltip positioning
