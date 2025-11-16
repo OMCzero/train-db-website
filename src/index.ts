@@ -975,6 +975,13 @@ function getHTML(): string {
       html += '</div>';
 
       modalBody.innerHTML = html;
+
+      // Reset scroll position to top
+      const modalContent = modal.querySelector('.modal-content');
+      if (modalContent) {
+        modalContent.scrollTop = 0;
+      }
+
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
     }
