@@ -1194,6 +1194,14 @@ function getHTML(): string {
       }
     });
 
+    // Hide tooltips when scrolling
+    let scrollTimeout;
+    document.addEventListener('scroll', (e) => {
+      // Hide all visible tooltips immediately when scrolling
+      const visibleTooltips = document.querySelectorAll('.tooltip-text.visible');
+      visibleTooltips.forEach(tooltip => tooltip.classList.remove('visible'));
+    }, true);
+
     // Load initial data
     loadData();
 
