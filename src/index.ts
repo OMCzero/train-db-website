@@ -578,7 +578,7 @@ function getHTML(): string {
     }
 
     .info-icon .tooltip-text {
-      visibility: hidden;
+      display: none;
       width: 300px;
       background-color: #2c3e50;
       color: white;
@@ -596,6 +596,11 @@ function getHTML(): string {
       pointer-events: none;
     }
 
+    .info-icon .tooltip-text.visible {
+      display: block;
+      opacity: 1;
+    }
+
     .info-icon .tooltip-text::after {
       content: "";
       position: absolute;
@@ -605,11 +610,6 @@ function getHTML(): string {
       border-width: 5px;
       border-style: solid;
       border-color: transparent #2c3e50 transparent transparent;
-    }
-
-    .info-icon:hover .tooltip-text {
-      visibility: visible;
-      opacity: 1;
     }
 
     @keyframes fadeIn {
@@ -1080,11 +1080,8 @@ function getHTML(): string {
       const spacing = 10;
 
       // Make tooltip visible temporarily to get its height
-      tooltipElement.style.visibility = 'visible';
-      tooltipElement.style.opacity = '0';
       tooltipElement.style.display = 'block';
       const tooltipHeight = tooltipElement.offsetHeight;
-      tooltipElement.style.display = '';
 
       // Position to the right of the icon by default
       let left = iconRect.right + spacing;
@@ -1107,6 +1104,7 @@ function getHTML(): string {
 
       tooltipElement.style.left = left + 'px';
       tooltipElement.style.top = top + 'px';
+      tooltipElement.classList.add('visible');
     }
 
     // Set up tooltip positioning on hover
@@ -1115,6 +1113,16 @@ function getHTML(): string {
         const tooltip = e.target.querySelector('.tooltip-text');
         if (tooltip) {
           positionTooltip(e.target, tooltip);
+        }
+      }
+    });
+
+    // Hide tooltip on mouseout
+    document.addEventListener('mouseout', (e) => {
+      if (e.target.classList.contains('info-icon')) {
+        const tooltip = e.target.querySelector('.tooltip-text');
+        if (tooltip) {
+          tooltip.classList.remove('visible');
         }
       }
     });
