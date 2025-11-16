@@ -975,16 +975,18 @@ function getHTML(): string {
       html += '</div>';
 
       modalBody.innerHTML = html;
-
-      // Reset scroll position to top for both possible scroll containers
-      const modalContent = modal.querySelector('.modal-content');
-      if (modalContent) {
-        modalContent.scrollTop = 0;
-      }
-      modalBody.scrollTop = 0;
-
       modal.classList.add('active');
       document.body.style.overflow = 'hidden';
+
+      // Reset scroll position after the DOM updates
+      // Use requestAnimationFrame to ensure it happens after render
+      requestAnimationFrame(() => {
+        const modalContent = modal.querySelector('.modal-content');
+        if (modalContent) {
+          modalContent.scrollTop = 0;
+        }
+        modalBody.scrollTop = 0;
+      });
     }
 
     function closeModal(event) {
