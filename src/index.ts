@@ -49,7 +49,7 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
     FROM train_cars tc
     LEFT JOIN train_models tm ON tc.batch_id = tm.batch_id`;
     let countQuery = "SELECT COUNT(*) as total FROM train_cars tc";
-    const lastUpdatedQuery = "SELECT last_autoanalyze FROM pg_stat_user_tables WHERE relname = 'train_cars'";
+    const lastUpdatedQuery = "SELECT MAX(last_modified) as last_modified FROM train_cars";
     const params: any[] = [];
 
     if (search) {
@@ -85,7 +85,7 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
       total: parseInt(countResult.rows[0].total),
       limit,
       offset,
-      lastUpdated: lastUpdatedResult.rows[0]?.last_autoanalyze || null,
+      lastUpdated: lastUpdatedResult.rows[0]?.last_modified || null,
     });
   } catch (e) {
     ctx.waitUntil(client.end());
