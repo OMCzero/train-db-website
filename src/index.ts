@@ -1065,7 +1065,7 @@ function getHTML(): string {
           value = '<em style="color: #adb5bd;">N/A</em>';
         } else if (key === 'notes') {
           // Convert newlines to <br> tags for multi-line notes
-          value = String(value).replace(/\n/g, '<br>');
+          value = String(value).replace(/\\n/g, '<br>');
         }
 
         html += \`
@@ -1088,7 +1088,7 @@ function getHTML(): string {
           value = '<em style="color: #adb5bd;">N/A</em>';
         } else if (key === 'manufacture_location' || key === 'notes') {
           // Convert newlines to <br> tags for multi-line fields
-          value = String(value).replace(/\n/g, '<br>');
+          value = String(value).replace(/\\n/g, '<br>');
         }
 
         html += \`
