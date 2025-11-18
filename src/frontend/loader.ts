@@ -1,34 +1,36 @@
-// This module is responsible for loading and serving frontend assets
-// In production (Cloudflare Workers), files are bundled at build time
-// In development, they are read from the filesystem
+// Import frontend assets as text/strings
+// Wrangler's default rules treat .html, .txt as Text
+// We need to ensure .css and .js in frontend are also treated as text
 
-import htmlContent from './index.html';
-import cssContent from './styles.css';
-import jsContent from './app.js';
+import htmlText from './index.html';
+import cssText from './styles.css';
+import jsText from './app.js';
 
 export function getHTML(): string {
-  // Read the HTML template
-  let html = htmlContent;
+  // Type assertion since wrangler's text imports come as any
+  let html = htmlText as unknown as string;
+  const css = cssText as unknown as string;
+  const js = jsText as unknown as string;
 
   // Replace stylesheet link with inline CSS
   html = html.replace(
     '<link rel="stylesheet" href="/styles.css">',
-    `<style>${cssContent}</style>`
+    `<style>${css}</style>`
   );
 
   // Replace script tag with inline JS
   html = html.replace(
     '<script src="/app.js"></script>',
-    `<script>${jsContent}</script>`
+    `<script>${js}</script>`
   );
 
   return html;
 }
 
 export function getCSS(): string {
-  return cssContent;
+  return cssText as unknown as string;
 }
 
 export function getJS(): string {
-  return jsContent;
+  return jsText as unknown as string;
 }
