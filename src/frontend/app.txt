@@ -137,10 +137,14 @@ function displayData(data) {
         if (!firstMatchingCar) return; // Skip if no matching cars (shouldn't happen)
 
         const firstCar = vehicleMap[firstMatchingCar].row;
-        const carIds = carsInMarriage.map(id => {
+        const formattedIds = carsInMarriage.map(id => {
           const isMarkV = id >= 6000 && id < 7000;
           return String(id).padStart(isMarkV ? 4 : 3, '0');
-        }).join(', ');
+        });
+        // Use / for 2-car marriages, - for others
+        const carIds = carsInMarriage.length === 2
+          ? formattedIds.join('/')
+          : formattedIds.join('-');
 
         // Check if any car in the marriage has notes
         const hasNotes = carsInMarriage.some(carId => {
