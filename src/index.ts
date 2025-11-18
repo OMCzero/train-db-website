@@ -905,10 +905,12 @@ function getHTML(): string {
         tableColumns.forEach(col => {
           let value = row[col];
 
-          // Format vehicle_id with leading zeros and add tooltip for Mark V (6xx series)
+          // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
           if (col === 'vehicle_id' && value !== null && value !== undefined) {
-            const formattedId = String(value).padStart(3, '0');
-            if (formattedId.startsWith('6')) {
+            // Mark V trains (6xxx) are 4-digit, all others are 3-digit
+            const isMarkV = value >= 6000 && value < 7000;
+            const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+            if (isMarkV) {
               value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
             } else {
               value = formattedId;
@@ -1044,10 +1046,12 @@ function getHTML(): string {
 
         let value = row[key];
 
-        // Format vehicle_id with leading zeros and add tooltip for Mark V (6xx series)
+        // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
         if (key === 'vehicle_id' && value !== null && value !== undefined) {
-          const formattedId = String(value).padStart(3, '0');
-          if (formattedId.startsWith('6')) {
+          // Mark V trains (6xxx) are 4-digit, all others are 3-digit
+          const isMarkV = value >= 6000 && value < 7000;
+          const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+          if (isMarkV) {
             value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
           } else {
             value = formattedId;
@@ -1127,19 +1131,27 @@ function getHTML(): string {
 
     // Generate tooltip text for Mark V trains
     function getMarkVTooltipText(trainId) {
-      // Determine the pair number (odd/even)
-      const isEven = parseInt(trainId) % 2 === 0;
-      const pairOdd = isEven ? trainId - 1 : trainId;
-      const pairEven = isEven ? trainId : parseInt(trainId) + 1;
+      const trainNum = parseInt(trainId);
 
-      // Generate vehicle numbers
-      const vehicle1 = \`\${pairOdd}1\`;
-      const vehicle2 = \`\${pairEven}2\`;
-      const vehicle3 = \`\${pairEven}3\`;
-      const vehicle4 = \`\${pairEven}4\`;
-      const vehicle5 = \`\${pairEven}5\`;
+      // Get the 3-digit VCC pair numbers (e.g., 6012 -> 601)
+      const vccPairNum = Math.floor(trainNum / 10);
 
-      return \`Mark V trains have 5 cars but vehicle control computers (VCCs) treat them as 2-car pairs. Train \${trainId} (pair \${pairOdd}/\${pairEven}) has cars \${vehicle1}, \${vehicle2}, \${vehicle3}, \${vehicle4}, and \${vehicle5}.\`;
+      // Determine if this is odd or even in the VCC pair
+      const lastDigit = trainNum % 10;
+      const isEven = lastDigit % 2 === 0;
+
+      // Calculate the VCC pair (e.g., 601/602)
+      const vccOdd = isEven ? vccPairNum - 1 : vccPairNum;
+      const vccEven = isEven ? vccPairNum : vccPairNum + 1;
+
+      // Generate the actual 4-digit car numbers
+      const vehicle1 = \`\${vccOdd * 10 + 1}\`;
+      const vehicle2 = \`\${vccEven * 10 + 2}\`;
+      const vehicle3 = \`\${vccEven * 10 + 3}\`;
+      const vehicle4 = \`\${vccEven * 10 + 4}\`;
+      const vehicle5 = \`\${vccEven * 10 + 5}\`;
+
+      return \`Mark V trains have 5 cars with 4-digit IDs, but vehicle control computers (VCCs) treat them as 2-car pairs using 3-digit identifiers. Train \${trainId} is part of VCC pair \${vccOdd}/\${vccEven} and has cars \${vehicle1}, \${vehicle2}, \${vehicle3}, \${vehicle4}, and \${vehicle5}.\`;
     }
 
     // Tooltip positioning
