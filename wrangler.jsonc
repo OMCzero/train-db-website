@@ -13,12 +13,7 @@
   "rules": [
     {
       "type": "Text",
-      "globs": ["**/*.html", "**/*.css"],
-      "fallthrough": false
-    },
-    {
-      "type": "Text",
-      "globs": ["**/frontend/*.js"],
+      "globs": ["**/*.html", "**/*.css", "src/frontend/app.js"],
       "fallthrough": false
     }
   ],
