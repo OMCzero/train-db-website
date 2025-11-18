@@ -137,14 +137,27 @@ function displayData(data) {
         if (!firstMatchingCar) return; // Skip if no matching cars (shouldn't happen)
 
         const firstCar = vehicleMap[firstMatchingCar].row;
-        const formattedIds = carsInMarriage.map(id => {
-          const isMarkV = id >= 6000 && id < 7000;
-          return String(id).padStart(isMarkV ? 4 : 3, '0');
-        });
-        // Use / for 2-car marriages, - for others
-        const carIds = carsInMarriage.length === 2
-          ? formattedIds.join('/')
-          : formattedIds.join('-');
+
+        // Check if this is a Mark V marriage (all cars in 6xxx range)
+        const isMarkVMarriage = carsInMarriage.every(id => id >= 6000 && id < 7000);
+
+        let carIds;
+        if (isMarkVMarriage) {
+          // For Mark V, show 3-digit VCC pairs (e.g., 601/602)
+          // Calculate unique VCC pair numbers from the car IDs
+          const vccPairs = [...new Set(carsInMarriage.map(id => Math.floor(id / 10)))].sort((a, b) => a - b);
+          carIds = vccPairs.join('/');
+        } else {
+          // For other trains, show full vehicle IDs with appropriate padding
+          const formattedIds = carsInMarriage.map(id => {
+            const isMarkV = id >= 6000 && id < 7000;
+            return String(id).padStart(isMarkV ? 4 : 3, '0');
+          });
+          // Use / for 2-car marriages, - for others
+          carIds = carsInMarriage.length === 2
+            ? formattedIds.join('/')
+            : formattedIds.join('-');
+        }
 
         // Check if any car in the marriage has notes
         const hasNotes = carsInMarriage.some(carId => {
