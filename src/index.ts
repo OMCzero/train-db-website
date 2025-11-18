@@ -989,7 +989,7 @@ function getHTML(): string {
           const carsInMarriage = marriage.cars.filter(carId => vehicleMap[carId]);
 
           if (carsInMarriage.length > 0) {
-            // Create marriage header row
+            // Create marriage header row with common fields
             const firstCar = vehicleMap[carsInMarriage[0]].row;
             const carIds = carsInMarriage.map(id => {
               const isMarkV = id >= 6000 && id < 7000;
@@ -997,7 +997,44 @@ function getHTML(): string {
             }).join(', ');
 
             html += \`<tr class="marriage-row" onclick="toggleMarriage(\${marriageIndex})">\`;
-            html += \`<td colspan="\${tableColumns.length}"><span class="marriage-expand-icon">▶</span>Marriage \${marriage.marriage_id} (\${marriage.marriage_size} cars): \${carIds}</td>\`;
+
+            // Add cells for each column
+            tableColumns.forEach(col => {
+              let value = '';
+
+              if (col === 'vehicle_id') {
+                // Show the marriage cars list
+                value = \`<span class="marriage-expand-icon">▶</span>\${carIds}\`;
+              } else if (col === 'model_common_name') {
+                // Show model
+                value = firstCar.model_common_name;
+              } else if (col === 'name') {
+                // Show marriage info instead of name
+                value = \`Marriage \${marriage.marriage_id} (\${marriage.marriage_size} cars)\`;
+              } else if (col === 'status') {
+                // Show status with badge
+                value = firstCar.status;
+                if (value) {
+                  const statusClass = \`status-\${value.toLowerCase().replace(/\\s+/g, '-')}\`;
+                  value = \`<span class="status-badge \${statusClass}">\${value}</span>\`;
+                }
+              } else if (col === 'delivery_date') {
+                value = firstCar.delivery_date;
+              } else if (col === 'enter_service_date') {
+                value = firstCar.enter_service_date;
+              } else if (col === 'notes') {
+                // Leave notes empty for marriage row
+                value = '';
+              }
+
+              // Handle null values
+              if (value === null || value === undefined || value === '') {
+                value = '<em style="color: #adb5bd;">N/A</em>';
+              }
+
+              html += \`<td data-column="\${col}">\${value}</td>\`;
+            });
+
             html += '</tr>';
 
             // Add individual car rows (initially hidden)
