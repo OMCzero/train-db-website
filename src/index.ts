@@ -64,6 +64,7 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
 
     // Build query with optional filters
     const search = searchParams.get("search") || "";
+    const groupByMarriage = searchParams.get("groupByMarriage") === "true";
     // Validate and constrain limit and offset parameters
     const limit = Math.min(Math.max(parseInt(searchParams.get("limit") || "50"), 1), 100);
     const offset = Math.max(parseInt(searchParams.get("offset") || "0"), 0);
@@ -105,11 +106,18 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
 
     query += ` ORDER BY tc.vehicle_id LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
 
+    // Fetch marriages data if grouping is enabled
+    let marriagesPromise = Promise.resolve(null);
+    if (groupByMarriage) {
+      marriagesPromise = client.query("SELECT marriage_id, batch_id, cars, marriage_size FROM car_marriages ORDER BY marriage_id");
+    }
+
     // Execute queries
-    const [dataResult, countResult, lastUpdatedResult] = await Promise.all([
+    const [dataResult, countResult, lastUpdatedResult, marriagesResult] = await Promise.all([
       client.query(query, [...params, limit, offset]),
       client.query(countQuery, params.length > 0 ? params : []),
       client.query(lastUpdatedQuery),
+      marriagesPromise,
     ]);
 
     // Close the connection after response is returned
@@ -121,6 +129,7 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
       limit,
       offset,
       lastUpdated: lastUpdatedResult.rows[0]?.last_modified || null,
+      marriages: marriagesResult?.rows || null,
     });
   } catch (e) {
     ctx.waitUntil(client.end());
@@ -272,6 +281,26 @@ function getHTML(): string {
       box-shadow: none;
     }
 
+    .checkbox-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      cursor: pointer;
+      font-size: 1rem;
+      color: #495057;
+      user-select: none;
+    }
+
+    .checkbox-label input[type="checkbox"] {
+      width: 18px;
+      height: 18px;
+      cursor: pointer;
+    }
+
+    .checkbox-label span {
+      white-space: nowrap;
+    }
+
     .stats {
       padding: 20px 30px;
       background: #f8f9fa;
@@ -384,6 +413,42 @@ function getHTML(): string {
 
     tbody tr:hover {
       background: #f8f9fa;
+    }
+
+    .marriage-row {
+      background: #e3f2fd !important;
+      font-weight: 600;
+      cursor: pointer;
+    }
+
+    .marriage-row:hover {
+      background: #bbdefb !important;
+    }
+
+    .marriage-row td {
+      padding: 15px;
+    }
+
+    .marriage-expand-icon {
+      display: inline-block;
+      margin-right: 8px;
+      transition: transform 0.2s;
+    }
+
+    .marriage-row.expanded .marriage-expand-icon {
+      transform: rotate(90deg);
+    }
+
+    .car-row {
+      background: #fafafa;
+    }
+
+    .car-row td:first-child {
+      padding-left: 40px;
+    }
+
+    .car-row.hidden {
+      display: none;
     }
 
     .status-badge {
@@ -784,6 +849,10 @@ function getHTML(): string {
         >
         <span class="search-icon">🔍</span>
       </div>
+      <label class="checkbox-label">
+        <input type="checkbox" id="groupByMarriage" onchange="loadData()">
+        <span>Group by marriage</span>
+      </label>
       <button class="btn btn-primary" onclick="loadData()">Search</button>
       <button class="btn btn-primary" onclick="clearSearch()">Clear</button>
     </div>
@@ -830,14 +899,16 @@ function getHTML(): string {
     let currentSearch = '';
     let currentData = [];
     let lastUpdated = null;
+    let marriages = null;
 
     async function loadData(page = 0) {
       currentPage = page;
       const searchTerm = document.getElementById('searchInput').value;
+      const groupByMarriage = document.getElementById('groupByMarriage').checked;
       currentSearch = searchTerm;
 
       const offset = page * pageSize;
-      const url = \`/api/train-cars?limit=\${pageSize}&offset=\${offset}&search=\${encodeURIComponent(searchTerm)}\`;
+      const url = \`/api/train-cars?limit=\${pageSize}&offset=\${offset}&search=\${encodeURIComponent(searchTerm)}&groupByMarriage=\${groupByMarriage}\`;
 
       document.getElementById('content').innerHTML = \`
         <div class="loading">
@@ -856,6 +927,7 @@ function getHTML(): string {
 
         totalRecords = json.total;
         lastUpdated = json.lastUpdated;
+        marriages = json.marriages;
         displayData(json.data);
         updateStats();
       } catch (error) {
@@ -880,6 +952,8 @@ function getHTML(): string {
         return;
       }
 
+      const groupByMarriage = document.getElementById('groupByMarriage').checked;
+
       // Define which columns to show in the table
       const tableColumns = ['vehicle_id', 'model_common_name', 'name', 'status', 'delivery_date', 'enter_service_date', 'notes'];
 
@@ -900,38 +974,138 @@ function getHTML(): string {
       });
       html += '</tr></thead><tbody>';
 
-      data.forEach((row, index) => {
-        html += \`<tr onclick="openModal(\${index})">\`;
-        tableColumns.forEach(col => {
-          let value = row[col];
-
-          // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
-          if (col === 'vehicle_id' && value !== null && value !== undefined) {
-            // Mark V trains (6xxx) are 4-digit, all others are 3-digit
-            const isMarkV = value >= 6000 && value < 7000;
-            const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
-            if (isMarkV) {
-              value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
-            } else {
-              value = formattedId;
-            }
-          }
-
-          // Format status with badge
-          if (col === 'status' && value) {
-            const statusClass = \`status-\${value.toLowerCase().replace(/\\s+/g, '-')}\`;
-            value = \`<span class="status-badge \${statusClass}">\${value}</span>\`;
-          }
-
-          // Handle null values
-          if (value === null || value === undefined) {
-            value = '<em style="color: #adb5bd;">N/A</em>';
-          }
-
-          html += \`<td data-column="\${col}">\${value}</td>\`;
+      if (groupByMarriage && marriages) {
+        // Group data by marriage
+        const vehicleMap = {};
+        data.forEach((row, index) => {
+          vehicleMap[row.vehicle_id] = { row, index };
         });
-        html += '</tr>';
-      });
+
+        // Track which vehicles have been displayed
+        const displayedVehicles = new Set();
+
+        // Display marriages
+        marriages.forEach((marriage, marriageIndex) => {
+          const carsInMarriage = marriage.cars.filter(carId => vehicleMap[carId]);
+
+          if (carsInMarriage.length > 0) {
+            // Create marriage header row
+            const firstCar = vehicleMap[carsInMarriage[0]].row;
+            const carIds = carsInMarriage.map(id => {
+              const isMarkV = id >= 6000 && id < 7000;
+              return String(id).padStart(isMarkV ? 4 : 3, '0');
+            }).join(', ');
+
+            html += \`<tr class="marriage-row" onclick="toggleMarriage(\${marriageIndex})">\`;
+            html += \`<td colspan="\${tableColumns.length}"><span class="marriage-expand-icon">▶</span>Marriage \${marriage.marriage_id} (\${marriage.marriage_size} cars): \${carIds}</td>\`;
+            html += '</tr>';
+
+            // Add individual car rows (initially hidden)
+            carsInMarriage.forEach(carId => {
+              const { row, index } = vehicleMap[carId];
+              displayedVehicles.add(carId);
+              html += \`<tr class="car-row hidden" data-marriage="\${marriageIndex}" onclick="openModal(\${index})">\`;
+
+              tableColumns.forEach(col => {
+                let value = row[col];
+
+                // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
+                if (col === 'vehicle_id' && value !== null && value !== undefined) {
+                  const isMarkV = value >= 6000 && value < 7000;
+                  const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+                  if (isMarkV) {
+                    value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
+                  } else {
+                    value = formattedId;
+                  }
+                }
+
+                // Format status with badge
+                if (col === 'status' && value) {
+                  const statusClass = \`status-\${value.toLowerCase().replace(/\\s+/g, '-')}\`;
+                  value = \`<span class="status-badge \${statusClass}">\${value}</span>\`;
+                }
+
+                // Handle null values
+                if (value === null || value === undefined) {
+                  value = '<em style="color: #adb5bd;">N/A</em>';
+                }
+
+                html += \`<td data-column="\${col}">\${value}</td>\`;
+              });
+              html += '</tr>';
+            });
+          }
+        });
+
+        // Display vehicles that are not in any marriage
+        data.forEach((row, index) => {
+          if (!displayedVehicles.has(row.vehicle_id)) {
+            html += \`<tr onclick="openModal(\${index})">\`;
+            tableColumns.forEach(col => {
+              let value = row[col];
+
+              // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
+              if (col === 'vehicle_id' && value !== null && value !== undefined) {
+                const isMarkV = value >= 6000 && value < 7000;
+                const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+                if (isMarkV) {
+                  value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
+                } else {
+                  value = formattedId;
+                }
+              }
+
+              // Format status with badge
+              if (col === 'status' && value) {
+                const statusClass = \`status-\${value.toLowerCase().replace(/\\s+/g, '-')}\`;
+                value = \`<span class="status-badge \${statusClass}">\${value}</span>\`;
+              }
+
+              // Handle null values
+              if (value === null || value === undefined) {
+                value = '<em style="color: #adb5bd;">N/A</em>';
+              }
+
+              html += \`<td data-column="\${col}">\${value}</td>\`;
+            });
+            html += '</tr>';
+          }
+        });
+      } else {
+        // Normal display without grouping
+        data.forEach((row, index) => {
+          html += \`<tr onclick="openModal(\${index})">\`;
+          tableColumns.forEach(col => {
+            let value = row[col];
+
+            // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
+            if (col === 'vehicle_id' && value !== null && value !== undefined) {
+              const isMarkV = value >= 6000 && value < 7000;
+              const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+              if (isMarkV) {
+                value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
+              } else {
+                value = formattedId;
+              }
+            }
+
+            // Format status with badge
+            if (col === 'status' && value) {
+              const statusClass = \`status-\${value.toLowerCase().replace(/\\s+/g, '-')}\`;
+              value = \`<span class="status-badge \${statusClass}">\${value}</span>\`;
+            }
+
+            // Handle null values
+            if (value === null || value === undefined) {
+              value = '<em style="color: #adb5bd;">N/A</em>';
+            }
+
+            html += \`<td data-column="\${col}">\${value}</td>\`;
+          });
+          html += '</tr>';
+        });
+      }
 
       html += '</tbody></table>';
       document.getElementById('content').innerHTML = html;
@@ -995,6 +1169,19 @@ function getHTML(): string {
     function clearSearch() {
       document.getElementById('searchInput').value = '';
       loadData(0);
+    }
+
+    function toggleMarriage(marriageIndex) {
+      const marriageRows = document.querySelectorAll(\`tr.car-row[data-marriage="\${marriageIndex}"]\`);
+      const marriageRow = document.querySelectorAll('.marriage-row')[marriageIndex];
+
+      marriageRows.forEach(row => {
+        row.classList.toggle('hidden');
+      });
+
+      if (marriageRow) {
+        marriageRow.classList.toggle('expanded');
+      }
     }
 
     // Modal functions
