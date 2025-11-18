@@ -1,10 +1,9 @@
 // Import frontend assets as text/strings
-// Wrangler's default rules treat .html, .txt, .css as Text
-// Renamed app.js to app.txt to prevent execution at build time
+// Wrangler rules configured to treat .html, .css, and frontend/*.js as Text modules
 
 import htmlText from './index.html';
 import cssText from './styles.css';
-import jsText from './app.txt';
+import jsText from './app.js';
 
 export function getHTML(): string {
   // Type assertion since wrangler's text imports come as any
