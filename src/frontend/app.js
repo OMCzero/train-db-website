@@ -1,0 +1,646 @@
+let currentPage = 0;
+const pageSize = 50;
+let totalRecords = 0;
+let currentSearch = '';
+let currentData = [];
+let lastUpdated = null;
+let marriages = null;
+let filteredMarriagesCount = 0;
+
+async function loadData(page = 0) {
+  currentPage = page;
+  const searchTerm = document.getElementById('searchInput').value;
+  const groupByMarriage = document.getElementById('groupByMarriage').checked;
+  currentSearch = searchTerm;
+
+  const offset = page * pageSize;
+  const url = `/api/train-cars?limit=${pageSize}&offset=${offset}&search=${encodeURIComponent(searchTerm)}&groupByMarriage=${groupByMarriage}`;
+
+  document.getElementById('content').innerHTML = `
+    <div class="loading">
+      <div class="spinner"></div>
+      <p>Loading train cars data...</p>
+    </div>
+  `;
+
+  try {
+    const response = await fetch(url);
+    const json = await response.json();
+
+    if (!response.ok) {
+      throw new Error(json.error || 'Failed to fetch data');
+    }
+
+    totalRecords = json.total;
+    lastUpdated = json.lastUpdated;
+    marriages = json.marriages;
+    displayData(json.data);
+    updateStats();
+  } catch (error) {
+    document.getElementById('content').innerHTML = `
+      <div class="error">
+        <strong>Error:</strong> ${error.message}
+      </div>
+    `;
+  }
+}
+
+function displayData(data) {
+  currentData = data;
+
+  if (data.length === 0) {
+    document.getElementById('content').innerHTML = `
+      <div class="empty-state">
+        <h2>No train cars found</h2>
+        <p>Try adjusting your search criteria</p>
+      </div>
+    `;
+    return;
+  }
+
+  const groupByMarriage = document.getElementById('groupByMarriage').checked;
+
+  // Define which columns to show in the table
+  const tableColumns = ['vehicle_id', 'model_common_name', 'name', 'status', 'delivery_date', 'enter_service_date', 'notes'];
+
+  const columnLabels = {
+    vehicle_id: 'VEHICLE ID',
+    model_common_name: 'MODEL',
+    name: 'NAME',
+    status: 'STATUS',
+    delivery_date: 'DELIVERY DATE',
+    enter_service_date: 'ENTERED SERVICE',
+    notes: 'NOTES'
+  };
+
+  let html = '<table><thead><tr>';
+  tableColumns.forEach(col => {
+    const label = columnLabels[col] || col.replace(/_/g, ' ').toUpperCase();
+    html += `<th data-column="${col}">${label}</th>`;
+  });
+  html += '</tr></thead><tbody>';
+
+  if (groupByMarriage && marriages) {
+    // Group data by marriage
+    const vehicleMap = {};
+    data.forEach((row, index) => {
+      vehicleMap[row.vehicle_id] = { row, index };
+    });
+
+    // Track which vehicles have been displayed
+    const displayedVehicles = new Set();
+
+    // Filter marriages based on search
+    const searchTerm = currentSearch.toLowerCase();
+    const availableMarriages = marriages.filter(marriage => {
+      // If no search, show all marriages
+      if (!searchTerm) return true;
+
+      // Check if any car in the marriage matches the search
+      return marriage.cars.some(carId => {
+        const car = vehicleMap[carId]?.row;
+        if (!car) return false;
+
+        // Search across various fields
+        const vehicleIdMatch = String(carId).padStart(3, '0').includes(searchTerm) ||
+                              String(carId).includes(searchTerm);
+        const nameMatch = car.name?.toLowerCase().includes(searchTerm);
+        const statusMatch = car.status?.toLowerCase().includes(searchTerm);
+        const deliveryMatch = car.delivery_date?.toLowerCase().includes(searchTerm);
+        const serviceMatch = car.enter_service_date?.toLowerCase().includes(searchTerm);
+        const notesMatch = car.notes?.toLowerCase().includes(searchTerm);
+        const modelMatch = car.model_common_name?.toLowerCase().includes(searchTerm);
+
+        return vehicleIdMatch || nameMatch || statusMatch || deliveryMatch ||
+               serviceMatch || notesMatch || modelMatch;
+      });
+    });
+
+    // Store filtered count for stats
+    filteredMarriagesCount = availableMarriages.length;
+
+    // Paginate marriages (not individual cars)
+    const start = currentPage * pageSize;
+    const end = start + pageSize;
+    const paginatedMarriages = availableMarriages.slice(start, end);
+
+    // Display marriages
+    paginatedMarriages.forEach((marriage, displayIndex) => {
+      const marriageIndex = marriages.indexOf(marriage);
+      // Show ALL cars in the marriage, not just the ones that match search
+      const carsInMarriage = marriage.cars;
+
+      if (carsInMarriage.length > 0) {
+        // Create marriage header row with common fields
+        // Use the first car that matches the search for field values
+        const firstMatchingCar = carsInMarriage.find(carId => vehicleMap[carId]);
+        if (!firstMatchingCar) return; // Skip if no matching cars (shouldn't happen)
+
+        const firstCar = vehicleMap[firstMatchingCar].row;
+        const carIds = carsInMarriage.map(id => {
+          const isMarkV = id >= 6000 && id < 7000;
+          return String(id).padStart(isMarkV ? 4 : 3, '0');
+        }).join(', ');
+
+        // Check if any car in the marriage has notes
+        const hasNotes = carsInMarriage.some(carId => {
+          const car = vehicleMap[carId]?.row;
+          return car && car.notes && car.notes.trim() !== '';
+        });
+
+        html += `<tr class="marriage-row" onclick="toggleMarriage(${marriageIndex})">`;
+
+        // Add cells for each column
+        tableColumns.forEach(col => {
+          let value = '';
+
+          if (col === 'vehicle_id') {
+            // Show the marriage cars list
+            value = `<span class="marriage-expand-icon">▶</span>${carIds}`;
+          } else if (col === 'model_common_name') {
+            // Show model
+            value = firstCar.model_common_name;
+          } else if (col === 'name') {
+            // Show marriage info instead of name
+            value = `Marriage ${marriage.marriage_id} (${marriage.marriage_size} cars)`;
+          } else if (col === 'status') {
+            // Show status with badge
+            value = firstCar.status;
+            if (value) {
+              const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
+              value = `<span class="status-badge ${statusClass}">${value}</span>`;
+            }
+          } else if (col === 'delivery_date') {
+            value = firstCar.delivery_date;
+          } else if (col === 'enter_service_date') {
+            value = firstCar.enter_service_date;
+          } else if (col === 'notes') {
+            // Show indicator if any car has notes
+            if (hasNotes) {
+              value = '<em style="color: #666; font-style: italic;">See individual cars</em>';
+            } else {
+              value = '';
+            }
+          }
+
+          // Handle null values
+          if (value === null || value === undefined || value === '') {
+            value = '<em style="color: #adb5bd;">N/A</em>';
+          }
+
+          html += `<td data-column="${col}">${value}</td>`;
+        });
+
+        html += '</tr>';
+
+        // Add individual car rows (initially hidden)
+        carsInMarriage.forEach(carId => {
+          const { row, index } = vehicleMap[carId];
+          displayedVehicles.add(carId);
+          html += `<tr class="car-row hidden" data-marriage="${marriageIndex}" onclick="openModal(${index})">`;
+
+          tableColumns.forEach(col => {
+            let value = row[col];
+
+            // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
+            if (col === 'vehicle_id' && value !== null && value !== undefined) {
+              const isMarkV = value >= 6000 && value < 7000;
+              const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+              if (isMarkV) {
+                value = `<span class="info-tooltip">${formattedId}<span class="info-icon" data-train-id="${formattedId}"><span class="tooltip-text"></span></span></span>`;
+              } else {
+                value = formattedId;
+              }
+            }
+
+            // Format status with badge
+            if (col === 'status' && value) {
+              const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
+              value = `<span class="status-badge ${statusClass}">${value}</span>`;
+            }
+
+            // Handle null values
+            if (value === null || value === undefined) {
+              value = '<em style="color: #adb5bd;">N/A</em>';
+            }
+
+            html += `<td data-column="${col}">${value}</td>`;
+          });
+          html += '</tr>';
+        });
+      }
+    });
+  } else {
+    // Normal display without grouping
+    data.forEach((row, index) => {
+      html += `<tr onclick="openModal(${index})">`;
+      tableColumns.forEach(col => {
+        let value = row[col];
+
+        // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
+        if (col === 'vehicle_id' && value !== null && value !== undefined) {
+          const isMarkV = value >= 6000 && value < 7000;
+          const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+          if (isMarkV) {
+            value = `<span class="info-tooltip">${formattedId}<span class="info-icon" data-train-id="${formattedId}"><span class="tooltip-text"></span></span></span>`;
+          } else {
+            value = formattedId;
+          }
+        }
+
+        // Format status with badge
+        if (col === 'status' && value) {
+          const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
+          value = `<span class="status-badge ${statusClass}">${value}</span>`;
+        }
+
+        // Handle null values
+        if (value === null || value === undefined) {
+          value = '<em style="color: #adb5bd;">N/A</em>';
+        }
+
+        html += `<td data-column="${col}">${value}</td>`;
+      });
+      html += '</tr>';
+    });
+  }
+
+  html += '</tbody></table>';
+  document.getElementById('content').innerHTML = html;
+}
+
+function updateStats() {
+  const groupByMarriage = document.getElementById('groupByMarriage').checked;
+
+  let start, end, totalPages, totalItems;
+
+  if (groupByMarriage && marriages) {
+    // Count marriages (not individual cars)
+    // Use filtered count if searching
+    totalItems = currentSearch ? filteredMarriagesCount : marriages.length;
+    totalPages = Math.ceil(totalItems / pageSize);
+    start = currentPage * pageSize + 1;
+    end = Math.min((currentPage + 1) * pageSize, totalItems);
+  } else {
+    // Count individual cars
+    totalItems = totalRecords;
+    totalPages = Math.ceil(totalItems / pageSize);
+    start = currentPage * pageSize + 1;
+    end = Math.min((currentPage + 1) * pageSize, totalItems);
+  }
+
+  document.getElementById('stats').style.display = 'flex';
+
+  if (currentSearch) {
+    const itemType = groupByMarriage ? 'marriages' : 'train cars';
+    document.getElementById('statsInfo').textContent =
+      `Showing ${totalItems} ${itemType} (filtered)`;
+  } else {
+    const itemType = groupByMarriage ? 'marriages' : 'train cars';
+    document.getElementById('statsInfo').textContent =
+      `Showing ${start} to ${end} of ${totalItems} ${itemType}`;
+  }
+
+  document.getElementById('pageInfo').textContent =
+    `Page ${currentPage + 1} of ${totalPages || 1}`;
+
+  // Format and display last updated date
+  if (lastUpdated) {
+    const date = new Date(lastUpdated);
+    const options = { month: 'long', day: 'numeric', year: 'numeric', timeZone: 'America/Los_Angeles' };
+    const formatter = new Intl.DateTimeFormat('en-US', options);
+    const parts = formatter.formatToParts(date);
+    const month = parts.find(p => p.type === 'month').value;
+    const day = parts.find(p => p.type === 'day').value;
+    const year = parts.find(p => p.type === 'year').value;
+
+    // Add ordinal suffix to day
+    const ordinal = (day) => {
+      const s = ['th', 'st', 'nd', 'rd'];
+      const v = day % 100;
+      return day + (s[(v - 20) % 10] || s[v] || s[0]);
+    };
+
+    document.getElementById('lastUpdated').textContent =
+      `Database last updated ${month} ${ordinal(day)}, ${year}`;
+  }
+
+  document.getElementById('prevBtn').disabled = currentPage === 0;
+  document.getElementById('nextBtn').disabled = end >= totalItems;
+}
+
+function prevPage() {
+  if (currentPage > 0) {
+    loadData(currentPage - 1);
+  }
+}
+
+function nextPage() {
+  const groupByMarriage = document.getElementById('groupByMarriage').checked;
+  const totalItems = groupByMarriage && marriages ? marriages.length : totalRecords;
+
+  if ((currentPage + 1) * pageSize < totalItems) {
+    loadData(currentPage + 1);
+  }
+}
+
+function clearSearch() {
+  document.getElementById('searchInput').value = '';
+  loadData(0);
+}
+
+function toggleMarriage(marriageIndex) {
+  const marriageRows = document.querySelectorAll(`tr.car-row[data-marriage="${marriageIndex}"]`);
+  const marriageRow = document.querySelectorAll('.marriage-row')[marriageIndex];
+
+  marriageRows.forEach(row => {
+    row.classList.toggle('hidden');
+  });
+
+  if (marriageRow) {
+    marriageRow.classList.toggle('expanded');
+  }
+}
+
+// Modal functions
+function openModal(index) {
+  const row = currentData[index];
+  if (!row) return;
+
+  const modal = document.getElementById('modal');
+  const modalBody = document.getElementById('modalBody');
+  const modalTitle = document.getElementById('modalTitle');
+
+  modalTitle.textContent = row.name || 'Train Car Details';
+
+  const carFields = [
+    'vehicle_id',
+    'name',
+    'status',
+    'delivery_date',
+    'enter_service_date',
+    'notes'
+  ];
+
+  const modelFields = [
+    'model_common_name',
+    'full_name',
+    'manufacturer',
+    'manufacture_location',
+    'years_manufactured'
+  ];
+
+  const fieldLabels = {
+    vehicle_id: 'Vehicle ID',
+    name: 'Name',
+    status: 'Status',
+    delivery_date: 'Delivery Date',
+    enter_service_date: 'Entered Service',
+    notes: 'Notes',
+    model_common_name: 'Model',
+    full_name: 'Full Model Name',
+    manufacturer: 'Manufacturer',
+    manufacture_location: 'Manufacture Location',
+    years_manufactured: 'Years Manufactured'
+  };
+
+  let html = '<div class="modal-section"><h3 class="modal-section-title">Vehicle Details</h3>';
+
+  carFields.forEach(key => {
+    if (!(key in row)) return;
+
+    let value = row[key];
+
+    // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
+    if (key === 'vehicle_id' && value !== null && value !== undefined) {
+      // Mark V trains (6xxx) are 4-digit, all others are 3-digit
+      const isMarkV = value >= 6000 && value < 7000;
+      const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
+      if (isMarkV) {
+        value = `<span class="info-tooltip">${formattedId}<span class="info-icon" data-train-id="${formattedId}"><span class="tooltip-text"></span></span></span>`;
+      } else {
+        value = formattedId;
+      }
+    }
+
+    // Format status with badge
+    if (key === 'status' && value) {
+      const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
+      value = `<span class="status-badge ${statusClass}">${value}</span>`;
+    }
+
+    // Handle null values
+    if (value === null || value === undefined) {
+      value = '<em style="color: #adb5bd;">N/A</em>';
+    } else if (key === 'notes') {
+      // Convert newlines to <br> tags for multi-line notes
+      value = String(value).replace(/\n/g, '<br>');
+    }
+
+    html += `
+      <div class="modal-field">
+        <div class="modal-field-label">${fieldLabels[key] || key}</div>
+        <div class="modal-field-value">${value}</div>
+      </div>
+    `;
+  });
+
+  html += '</div><div class="modal-section"><h3 class="modal-section-title">Model Information</h3>';
+
+  modelFields.forEach(key => {
+    if (!(key in row)) return;
+
+    let value = row[key];
+
+    // Handle null values
+    if (value === null || value === undefined) {
+      value = '<em style="color: #adb5bd;">N/A</em>';
+    } else if (key === 'manufacture_location' || key === 'notes') {
+      // Convert newlines to <br> tags for multi-line fields
+      value = String(value).replace(/\n/g, '<br>');
+    }
+
+    html += `
+      <div class="modal-field">
+        <div class="modal-field-label">${fieldLabels[key] || key}</div>
+        <div class="modal-field-value">${value}</div>
+      </div>
+    `;
+  });
+
+  html += '</div>';
+
+  modalBody.innerHTML = html;
+  modal.classList.add('active');
+  document.body.style.overflow = 'hidden';
+
+  // Reset scroll position after the DOM updates
+  // Use requestAnimationFrame to ensure it happens after render
+  requestAnimationFrame(() => {
+    const modalContent = modal.querySelector('.modal-content');
+    if (modalContent) {
+      modalContent.scrollTop = 0;
+    }
+    modalBody.scrollTop = 0;
+  });
+}
+
+function closeModal(event) {
+  if (event && event.target !== document.getElementById('modal')) {
+    return;
+  }
+  const modal = document.getElementById('modal');
+  modal.classList.remove('active');
+  document.body.style.overflow = '';
+}
+
+// Generate tooltip text for Mark V trains
+function getMarkVTooltipText(trainId) {
+  const trainNum = parseInt(trainId);
+
+  // Get the 3-digit VCC pair numbers (e.g., 6012 -> 601, 6022 -> 602)
+  const vccPairNum = Math.floor(trainNum / 10);
+
+  // Determine if this is odd or even in the VCC pair
+  const isEven = vccPairNum % 2 === 0;
+
+  // Calculate the VCC pair (e.g., 601/602 or 603/604)
+  const vccOdd = isEven ? vccPairNum - 1 : vccPairNum;
+  const vccEven = isEven ? vccPairNum : vccPairNum + 1;
+
+  // Generate the actual 4-digit car numbers based on the VCC pair digits
+  // For pair 601/602: 6011, 6022, 6023, 6024, 6025
+  // For pair 603/604: 6031, 6042, 6043, 6044, 6045
+  const vehicle1 = `${vccOdd}1`;
+  const vehicle2 = `${vccEven}2`;
+  const vehicle3 = `${vccEven}3`;
+  const vehicle4 = `${vccEven}4`;
+  const vehicle5 = `${vccEven}5`;
+
+  return `Mark V trains have 5 cars with 4-digit IDs, but vehicle control computers (VCCs) treat them as 2-car pairs using 3-digit identifiers. Train ${trainId} is part of VCC pair ${vccOdd}/${vccEven} and has cars ${vehicle1}, ${vehicle2}, ${vehicle3}, ${vehicle4}, and ${vehicle5}.`;
+}
+
+// Tooltip positioning
+function positionTooltip(iconElement, tooltipElement) {
+  const iconRect = iconElement.getBoundingClientRect();
+  const isMobile = window.innerWidth <= 768;
+  const tooltipWidth = isMobile ? 240 : 300;
+  const spacing = 10;
+
+  // Set tooltip text based on train ID
+  const trainId = iconElement.getAttribute('data-train-id');
+  if (trainId) {
+    tooltipElement.textContent = getMarkVTooltipText(trainId);
+  }
+
+  // Make tooltip visible temporarily to get its height
+  tooltipElement.style.display = 'block';
+  const tooltipHeight = tooltipElement.offsetHeight;
+
+  // Check if we're inside a modal
+  const isInModal = iconElement.closest('.modal');
+
+  // Position to the right of the icon by default
+  let left = iconRect.right + spacing;
+  let top = iconRect.top + (iconRect.height / 2) - (tooltipHeight / 2);
+
+  // If in modal, always show on the right (don't flip to left)
+  // Otherwise, flip to left if it would go off the right edge
+  if (!isInModal && left + tooltipWidth > window.innerWidth) {
+    left = iconRect.left - tooltipWidth - spacing;
+  }
+
+  // Make sure tooltip doesn't go off the top
+  if (top < spacing) {
+    top = spacing;
+  }
+
+  // Make sure tooltip doesn't go off the bottom
+  if (top + tooltipHeight > window.innerHeight - spacing) {
+    top = window.innerHeight - tooltipHeight - spacing;
+  }
+
+  tooltipElement.style.left = left + 'px';
+  tooltipElement.style.top = top + 'px';
+  tooltipElement.classList.add('visible');
+}
+
+// Track if we're using touch (mobile) or mouse (desktop)
+let isTouchDevice = false;
+
+// Detect touch device
+document.addEventListener('touchstart', function() {
+  isTouchDevice = true;
+}, { once: true });
+
+// Set up tooltip positioning on hover (desktop only)
+document.addEventListener('mouseover', (e) => {
+  if (isTouchDevice) return; // Skip on touch devices
+  if (e.target.classList.contains('info-icon')) {
+    const tooltip = e.target.querySelector('.tooltip-text');
+    if (tooltip) {
+      positionTooltip(e.target, tooltip);
+    }
+  }
+});
+
+// Hide tooltip on mouseout (desktop only)
+document.addEventListener('mouseout', (e) => {
+  if (isTouchDevice) return; // Skip on touch devices
+  if (e.target.classList.contains('info-icon')) {
+    const tooltip = e.target.querySelector('.tooltip-text');
+    if (tooltip) {
+      tooltip.classList.remove('visible');
+    }
+  }
+});
+
+// Handle clicks on info icon
+document.addEventListener('click', (e) => {
+  if (e.target.classList.contains('info-icon') || e.target.closest('.info-icon')) {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // On mobile, toggle tooltip
+    const icon = e.target.classList.contains('info-icon') ? e.target : e.target.closest('.info-icon');
+    const tooltip = icon.querySelector('.tooltip-text');
+    if (tooltip && isTouchDevice) {
+      if (tooltip.classList.contains('visible')) {
+        tooltip.classList.remove('visible');
+      } else {
+        positionTooltip(icon, tooltip);
+      }
+    }
+  }
+}, true);
+
+// Close tooltip when clicking outside (mobile)
+document.addEventListener('click', (e) => {
+  if (isTouchDevice && !e.target.classList.contains('info-icon') && !e.target.closest('.info-icon')) {
+    const visibleTooltips = document.querySelectorAll('.tooltip-text.visible');
+    visibleTooltips.forEach(tooltip => tooltip.classList.remove('visible'));
+  }
+});
+
+// Hide tooltips when scrolling
+let scrollTimeout;
+document.addEventListener('scroll', (e) => {
+  // Hide all visible tooltips immediately when scrolling
+  const visibleTooltips = document.querySelectorAll('.tooltip-text.visible');
+  visibleTooltips.forEach(tooltip => tooltip.classList.remove('visible'));
+}, true);
+
+// Load initial data
+loadData();
+
+// Enable Enter key for search
+document.getElementById('searchInput').addEventListener('keypress', (e) => {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    loadData(0);
+    // Blur the input to dismiss the keyboard on mobile only
+    if (isTouchDevice) {
+      e.target.blur();
+    }
+  }
+});

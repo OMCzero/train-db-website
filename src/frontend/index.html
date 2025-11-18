@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OMCzero Vehicle Database</title>
+
+  <!-- Primary Meta Tags -->
+  <meta name="title" content="SkyTrain Vehicle Database">
+  <meta name="description" content="Browse and search the complete SkyTrain vehicle database. Maintained by OMCzero volunteers with detailed information on all SkyTrain cars.">
+
+  <!-- Open Graph / Facebook -->
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://traindb.omczero.com/">
+  <meta property="og:title" content="SkyTrain Vehicle Database">
+  <meta property="og:description" content="Browse and search the complete SkyTrain vehicle database. Maintained by OMCzero volunteers with detailed information on all SkyTrain cars.">
+  <meta property="og:site_name" content="OMCzero">
+
+  <!-- Twitter -->
+  <meta property="twitter:card" content="summary_large_image">
+  <meta property="twitter:url" content="https://traindb.omczero.com/">
+  <meta property="twitter:title" content="SkyTrain Vehicle Database">
+  <meta property="twitter:description" content="Browse and search the complete SkyTrain vehicle database. Maintained by OMCzero volunteers with detailed information on all SkyTrain cars.">
+
+  <!-- Additional Meta Tags -->
+  <meta name="theme-color" content="#2c3e50">
+  <meta name="author" content="OMCzero">
+
+  <link rel="stylesheet" href="/styles.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>SkyTrain Vehicle Database</h1>
+      <p>Maintained by OMCzero volunteers. This database may contain inaccurate information. Use this at your own risk.</p>
+    </header>
+
+    <div class="controls">
+      <div class="search-box">
+        <input
+          type="text"
+          id="searchInput"
+          placeholder="Search by vehicle ID, name, status, dates, or notes..."
+        >
+        <span class="search-icon">🔍</span>
+      </div>
+      <label class="checkbox-label">
+        <input type="checkbox" id="groupByMarriage" onchange="loadData(0)">
+        <span>Group by marriage</span>
+      </label>
+      <button class="btn btn-primary" onclick="loadData()">Search</button>
+      <button class="btn btn-primary" onclick="clearSearch()">Clear</button>
+    </div>
+
+    <div class="stats" id="stats" style="display: none;">
+      <div>
+        <div class="stats-info" id="statsInfo"></div>
+        <div class="last-updated" id="lastUpdated"></div>
+        <div class="mobile-hint">Tap any row to view full details</div>
+        <div class="desktop-hint">Click any row to view full details</div>
+      </div>
+      <div class="pagination">
+        <button class="btn btn-primary" id="prevBtn" onclick="prevPage()">← Previous</button>
+        <span id="pageInfo"></span>
+        <button class="btn btn-primary" id="nextBtn" onclick="nextPage()">Next →</button>
+      </div>
+    </div>
+
+    <div class="table-container">
+      <div id="content">
+        <div class="loading">
+          <div class="spinner"></div>
+          <p>Loading train cars data...</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Modal for mobile view -->
+  <div id="modal" class="modal" onclick="closeModal(event)">
+    <div class="modal-content" onclick="event.stopPropagation()">
+      <div class="modal-header">
+        <h2 id="modalTitle">Train Car Details</h2>
+        <button class="modal-close" onclick="closeModal()">&times;</button>
+      </div>
+      <div id="modalBody"></div>
+    </div>
+  </div>
+
+  <script src="/app.js"></script>
+</body>
+</html>
