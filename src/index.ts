@@ -88,7 +88,9 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
     const lastUpdatedQuery = "SELECT MAX(last_modified) as last_modified FROM train_cars";
     const params: any[] = [];
 
-    if (search) {
+    // When grouping by marriage, fetch ALL data and ignore search at DB level
+    // Frontend will filter marriages based on search
+    if (!groupByMarriage && search) {
       const whereClause = " WHERE " +
         "LPAD(CAST(tc.vehicle_id AS TEXT), 3, '0') ILIKE $1 OR " +
         "CAST(tc.vehicle_id AS TEXT) ILIKE $1 OR " +
@@ -907,6 +909,7 @@ function getHTML(): string {
     let currentData = [];
     let lastUpdated = null;
     let marriages = null;
+    let filteredMarriagesCount = 0;
 
     async function loadData(page = 0) {
       currentPage = page;
@@ -991,10 +994,34 @@ function getHTML(): string {
         // Track which vehicles have been displayed
         const displayedVehicles = new Set();
 
-        // Filter marriages to only those with cars in the current dataset
-        const availableMarriages = marriages.filter(marriage =>
-          marriage.cars.some(carId => vehicleMap[carId])
-        );
+        // Filter marriages based on search
+        const searchTerm = currentSearch.toLowerCase();
+        const availableMarriages = marriages.filter(marriage => {
+          // If no search, show all marriages
+          if (!searchTerm) return true;
+
+          // Check if any car in the marriage matches the search
+          return marriage.cars.some(carId => {
+            const car = vehicleMap[carId]?.row;
+            if (!car) return false;
+
+            // Search across various fields
+            const vehicleIdMatch = String(carId).padStart(3, '0').includes(searchTerm) ||
+                                  String(carId).includes(searchTerm);
+            const nameMatch = car.name?.toLowerCase().includes(searchTerm);
+            const statusMatch = car.status?.toLowerCase().includes(searchTerm);
+            const deliveryMatch = car.delivery_date?.toLowerCase().includes(searchTerm);
+            const serviceMatch = car.enter_service_date?.toLowerCase().includes(searchTerm);
+            const notesMatch = car.notes?.toLowerCase().includes(searchTerm);
+            const modelMatch = car.model_common_name?.toLowerCase().includes(searchTerm);
+
+            return vehicleIdMatch || nameMatch || statusMatch || deliveryMatch ||
+                   serviceMatch || notesMatch || modelMatch;
+          });
+        });
+
+        // Store filtered count for stats
+        filteredMarriagesCount = availableMarriages.length;
 
         // Paginate marriages (not individual cars)
         const start = currentPage * pageSize;
@@ -1004,11 +1031,16 @@ function getHTML(): string {
         // Display marriages
         paginatedMarriages.forEach((marriage, displayIndex) => {
           const marriageIndex = marriages.indexOf(marriage);
-          const carsInMarriage = marriage.cars.filter(carId => vehicleMap[carId]);
+          // Show ALL cars in the marriage, not just the ones that match search
+          const carsInMarriage = marriage.cars;
 
           if (carsInMarriage.length > 0) {
             // Create marriage header row with common fields
-            const firstCar = vehicleMap[carsInMarriage[0]].row;
+            // Use the first car that matches the search for field values
+            const firstMatchingCar = carsInMarriage.find(carId => vehicleMap[carId]);
+            if (!firstMatchingCar) return; // Skip if no matching cars (shouldn't happen)
+
+            const firstCar = vehicleMap[firstMatchingCar].row;
             const carIds = carsInMarriage.map(id => {
               const isMarkV = id >= 6000 && id < 7000;
               return String(id).padStart(isMarkV ? 4 : 3, '0');
@@ -1148,7 +1180,8 @@ function getHTML(): string {
 
       if (groupByMarriage && marriages) {
         // Count marriages (not individual cars)
-        totalItems = marriages.length;
+        // Use filtered count if searching
+        totalItems = currentSearch ? filteredMarriagesCount : marriages.length;
         totalPages = Math.ceil(totalItems / pageSize);
         start = currentPage * pageSize + 1;
         end = Math.min((currentPage + 1) * pageSize, totalItems);
