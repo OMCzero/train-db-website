@@ -1,9 +1,10 @@
 // Import frontend assets as text/strings
-// Wrangler rules configured to treat .html, .css, and frontend/*.js as Text modules
+// Wrangler treats .html, .css, and .txt files as Text modules by default
+// Using .txt extension for JS to prevent esbuild from executing it during build
 
 import htmlText from './index.html';
 import cssText from './styles.css';
-import jsText from './app.js';
+import jsText from './app.txt';
 
 export function getHTML(): string {
   // Type assertion since wrangler's text imports come as any
