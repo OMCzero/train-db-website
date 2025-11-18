@@ -1014,6 +1014,12 @@ function getHTML(): string {
               return String(id).padStart(isMarkV ? 4 : 3, '0');
             }).join(', ');
 
+            // Check if any car in the marriage has notes
+            const hasNotes = carsInMarriage.some(carId => {
+              const car = vehicleMap[carId]?.row;
+              return car && car.notes && car.notes.trim() !== '';
+            });
+
             html += \`<tr class="marriage-row" onclick="toggleMarriage(\${marriageIndex})">\`;
 
             // Add cells for each column
@@ -1041,8 +1047,12 @@ function getHTML(): string {
               } else if (col === 'enter_service_date') {
                 value = firstCar.enter_service_date;
               } else if (col === 'notes') {
-                // Leave notes empty for marriage row
-                value = '';
+                // Show indicator if any car has notes
+                if (hasNotes) {
+                  value = '<em style="color: #666; font-style: italic;">See individual cars</em>';
+                } else {
+                  value = '';
+                }
               }
 
               // Handle null values
