@@ -1133,23 +1133,24 @@ function getHTML(): string {
     function getMarkVTooltipText(trainId) {
       const trainNum = parseInt(trainId);
 
-      // Get the 3-digit VCC pair numbers (e.g., 6012 -> 601)
+      // Get the 3-digit VCC pair numbers (e.g., 6012 -> 601, 6022 -> 602)
       const vccPairNum = Math.floor(trainNum / 10);
 
       // Determine if this is odd or even in the VCC pair
-      const lastDigit = trainNum % 10;
-      const isEven = lastDigit % 2 === 0;
+      const isEven = vccPairNum % 2 === 0;
 
-      // Calculate the VCC pair (e.g., 601/602)
+      // Calculate the VCC pair (e.g., 601/602 or 603/604)
       const vccOdd = isEven ? vccPairNum - 1 : vccPairNum;
       const vccEven = isEven ? vccPairNum : vccPairNum + 1;
 
-      // Generate the actual 4-digit car numbers
-      const vehicle1 = \`\${vccOdd * 10 + 1}\`;
-      const vehicle2 = \`\${vccEven * 10 + 2}\`;
-      const vehicle3 = \`\${vccEven * 10 + 3}\`;
-      const vehicle4 = \`\${vccEven * 10 + 4}\`;
-      const vehicle5 = \`\${vccEven * 10 + 5}\`;
+      // Generate the actual 4-digit car numbers based on the VCC pair digits
+      // For pair 601/602: 6011, 6022, 6023, 6024, 6025
+      // For pair 603/604: 6031, 6042, 6043, 6044, 6045
+      const vehicle1 = \`\${vccOdd}1\`;
+      const vehicle2 = \`\${vccEven}2\`;
+      const vehicle3 = \`\${vccEven}3\`;
+      const vehicle4 = \`\${vccEven}4\`;
+      const vehicle5 = \`\${vccEven}5\`;
 
       return \`Mark V trains have 5 cars with 4-digit IDs, but vehicle control computers (VCCs) treat them as 2-car pairs using 3-digit identifiers. Train \${trainId} is part of VCC pair \${vccOdd}/\${vccEven} and has cars \${vehicle1}, \${vehicle2}, \${vehicle3}, \${vehicle4}, and \${vehicle5}.\`;
     }
