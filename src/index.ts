@@ -104,7 +104,13 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
       params.push(`%${search}%`);
     }
 
-    query += ` ORDER BY tc.vehicle_id LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    // When grouping by marriage, fetch ALL data (no pagination at DB level)
+    // Frontend will handle pagination of marriage groups
+    if (groupByMarriage) {
+      query += ` ORDER BY tc.vehicle_id`;
+    } else {
+      query += ` ORDER BY tc.vehicle_id LIMIT $${params.length + 1} OFFSET $${params.length + 2}`;
+    }
 
     // Fetch marriages data if grouping is enabled
     let marriagesPromise = Promise.resolve(null);
@@ -113,8 +119,9 @@ async function getTrainCars(env: Env, ctx: ExecutionContext, searchParams: URLSe
     }
 
     // Execute queries
+    const queryParams = groupByMarriage ? params : [...params, limit, offset];
     const [dataResult, countResult, lastUpdatedResult, marriagesResult] = await Promise.all([
-      client.query(query, [...params, limit, offset]),
+      client.query(query, queryParams),
       client.query(countQuery, params.length > 0 ? params : []),
       client.query(lastUpdatedQuery),
       marriagesPromise,
@@ -339,6 +346,7 @@ function getHTML(): string {
       border-collapse: collapse;
       background: white;
       overflow: visible;
+      table-layout: fixed;
     }
 
     thead {
@@ -850,7 +858,7 @@ function getHTML(): string {
         <span class="search-icon">🔍</span>
       </div>
       <label class="checkbox-label">
-        <input type="checkbox" id="groupByMarriage" onchange="loadData()">
+        <input type="checkbox" id="groupByMarriage" onchange="loadData(0)">
         <span>Group by marriage</span>
       </label>
       <button class="btn btn-primary" onclick="loadData()">Search</button>
@@ -984,8 +992,19 @@ function getHTML(): string {
         // Track which vehicles have been displayed
         const displayedVehicles = new Set();
 
+        // Filter marriages to only those with cars in the current dataset
+        const availableMarriages = marriages.filter(marriage =>
+          marriage.cars.some(carId => vehicleMap[carId])
+        );
+
+        // Paginate marriages (not individual cars)
+        const start = currentPage * pageSize;
+        const end = start + pageSize;
+        const paginatedMarriages = availableMarriages.slice(start, end);
+
         // Display marriages
-        marriages.forEach((marriage, marriageIndex) => {
+        paginatedMarriages.forEach((marriage, displayIndex) => {
+          const marriageIndex = marriages.indexOf(marriage);
           const carsInMarriage = marriage.cars.filter(carId => vehicleMap[carId]);
 
           if (carsInMarriage.length > 0) {
@@ -1149,18 +1168,34 @@ function getHTML(): string {
     }
 
     function updateStats() {
-      const start = currentPage * pageSize + 1;
-      const end = Math.min((currentPage + 1) * pageSize, totalRecords);
-      const totalPages = Math.ceil(totalRecords / pageSize);
+      const groupByMarriage = document.getElementById('groupByMarriage').checked;
+
+      let start, end, totalPages, totalItems;
+
+      if (groupByMarriage && marriages) {
+        // Count marriages (not individual cars)
+        totalItems = marriages.length;
+        totalPages = Math.ceil(totalItems / pageSize);
+        start = currentPage * pageSize + 1;
+        end = Math.min((currentPage + 1) * pageSize, totalItems);
+      } else {
+        // Count individual cars
+        totalItems = totalRecords;
+        totalPages = Math.ceil(totalItems / pageSize);
+        start = currentPage * pageSize + 1;
+        end = Math.min((currentPage + 1) * pageSize, totalItems);
+      }
 
       document.getElementById('stats').style.display = 'flex';
 
       if (currentSearch) {
+        const itemType = groupByMarriage ? 'marriages' : 'train cars';
         document.getElementById('statsInfo').textContent =
-          \`Showing \${totalRecords} train cars (filtered)\`;
+          \`Showing \${totalItems} \${itemType} (filtered)\`;
       } else {
+        const itemType = groupByMarriage ? 'marriages' : 'train cars';
         document.getElementById('statsInfo').textContent =
-          \`Showing \${start} to \${end} of \${totalRecords} train cars\`;
+          \`Showing \${start} to \${end} of \${totalItems} \${itemType}\`;
       }
 
       document.getElementById('pageInfo').textContent =
@@ -1188,7 +1223,7 @@ function getHTML(): string {
       }
 
       document.getElementById('prevBtn').disabled = currentPage === 0;
-      document.getElementById('nextBtn').disabled = end >= totalRecords;
+      document.getElementById('nextBtn').disabled = end >= totalItems;
     }
 
     function prevPage() {
@@ -1198,7 +1233,10 @@ function getHTML(): string {
     }
 
     function nextPage() {
-      if ((currentPage + 1) * pageSize < totalRecords) {
+      const groupByMarriage = document.getElementById('groupByMarriage').checked;
+      const totalItems = groupByMarriage && marriages ? marriages.length : totalRecords;
+
+      if ((currentPage + 1) * pageSize < totalItems) {
         loadData(currentPage + 1);
       }
     }
