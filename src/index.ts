@@ -346,7 +346,6 @@ function getHTML(): string {
       border-collapse: collapse;
       background: white;
       overflow: visible;
-      table-layout: fixed;
     }
 
     thead {
@@ -1091,41 +1090,6 @@ function getHTML(): string {
               });
               html += '</tr>';
             });
-          }
-        });
-
-        // Display vehicles that are not in any marriage
-        data.forEach((row, index) => {
-          if (!displayedVehicles.has(row.vehicle_id)) {
-            html += \`<tr onclick="openModal(\${index})">\`;
-            tableColumns.forEach(col => {
-              let value = row[col];
-
-              // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
-              if (col === 'vehicle_id' && value !== null && value !== undefined) {
-                const isMarkV = value >= 6000 && value < 7000;
-                const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
-                if (isMarkV) {
-                  value = \`<span class="info-tooltip">\${formattedId}<span class="info-icon" data-train-id="\${formattedId}"><span class="tooltip-text"></span></span></span>\`;
-                } else {
-                  value = formattedId;
-                }
-              }
-
-              // Format status with badge
-              if (col === 'status' && value) {
-                const statusClass = \`status-\${value.toLowerCase().replace(/\\s+/g, '-')}\`;
-                value = \`<span class="status-badge \${statusClass}">\${value}</span>\`;
-              }
-
-              // Handle null values
-              if (value === null || value === undefined) {
-                value = '<em style="color: #adb5bd;">N/A</em>';
-              }
-
-              html += \`<td data-column="\${col}">\${value}</td>\`;
-            });
-            html += '</tr>';
           }
         });
       } else {
