@@ -159,11 +159,30 @@ function displayData(data) {
             : formattedIds.join('-');
         }
 
-        // Check if any car in the marriage has notes
-        const hasNotes = carsInMarriage.some(carId => {
-          const car = vehicleMap[carId]?.row;
-          return car && car.notes && car.notes.trim() !== '';
-        });
+        // Check if all cars in the marriage have the same note
+        let commonNote = null;
+        let hasCommonNote = false;
+        let hasMixedNotes = false;
+
+        const carsWithData = carsInMarriage.map(carId => vehicleMap[carId]?.row).filter(Boolean);
+        if (carsWithData.length > 0) {
+          const firstNote = (carsWithData[0].notes || '').trim();
+
+          // Check if all cars have the same note (including all being empty)
+          const allSameNote = carsWithData.every(car => {
+            const carNote = (car.notes || '').trim();
+            return carNote === firstNote;
+          });
+
+          if (allSameNote && firstNote !== '') {
+            // All cars have the same non-empty note
+            hasCommonNote = true;
+            commonNote = firstNote;
+          } else if (!allSameNote) {
+            // Cars have different notes (including mix of empty and non-empty)
+            hasMixedNotes = true;
+          }
+        }
 
         html += `<tr class="marriage-row" onclick="toggleMarriage(${marriageIndex})">`;
 
@@ -192,8 +211,10 @@ function displayData(data) {
           } else if (col === 'enter_service_date') {
             value = firstCar.enter_service_date;
           } else if (col === 'notes') {
-            // Show indicator if any car has notes
-            if (hasNotes) {
+            // Show common note if all cars have the same note
+            if (hasCommonNote) {
+              value = commonNote;
+            } else if (hasMixedNotes) {
               value = '<em style="color: #666; font-style: italic;">See individual cars</em>';
             } else {
               value = '';
