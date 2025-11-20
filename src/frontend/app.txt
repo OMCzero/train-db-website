@@ -223,7 +223,13 @@ function displayData(data) {
 
           // Handle null values
           if (value === null || value === undefined || value === '') {
-            value = '<em style="color: #adb5bd;">N/A</em>';
+            if (col === 'delivery_date' || col === 'enter_service_date') {
+              value = '<em style="color: #adb5bd;">Unknown</em>';
+            } else if (col === 'notes') {
+              value = '<em style="color: #adb5bd;">None</em>';
+            } else {
+              value = '<em style="color: #adb5bd;">N/A</em>';
+            }
           }
 
           html += `<td data-column="${col}">${value}</td>`;
@@ -259,7 +265,13 @@ function displayData(data) {
 
             // Handle null values
             if (value === null || value === undefined) {
-              value = '<em style="color: #adb5bd;">N/A</em>';
+              if (col === 'delivery_date' || col === 'enter_service_date') {
+                value = '<em style="color: #adb5bd;">Unknown</em>';
+              } else if (col === 'notes') {
+                value = '<em style="color: #adb5bd;">None</em>';
+              } else {
+                value = '<em style="color: #adb5bd;">N/A</em>';
+              }
             }
 
             html += `<td data-column="${col}">${value}</td>`;
@@ -294,7 +306,13 @@ function displayData(data) {
 
         // Handle null values
         if (value === null || value === undefined) {
-          value = '<em style="color: #adb5bd;">N/A</em>';
+          if (col === 'delivery_date' || col === 'enter_service_date') {
+            value = '<em style="color: #adb5bd;">Unknown</em>';
+          } else if (col === 'notes') {
+            value = '<em style="color: #adb5bd;">None</em>';
+          } else {
+            value = '<em style="color: #adb5bd;">N/A</em>';
+          }
         }
 
         html += `<td data-column="${col}">${value}</td>`;
@@ -469,7 +487,13 @@ function openModal(index) {
 
     // Handle null values
     if (value === null || value === undefined) {
-      value = '<em style="color: #adb5bd;">N/A</em>';
+      if (key === 'delivery_date' || key === 'enter_service_date') {
+        value = '<em style="color: #adb5bd;">Unknown</em>';
+      } else if (key === 'notes') {
+        value = '<em style="color: #adb5bd;">None</em>';
+      } else {
+        value = '<em style="color: #adb5bd;">N/A</em>';
+      }
     } else if (key === 'notes') {
       // Convert newlines to <br> tags for multi-line notes
       value = String(value).replace(/\n/g, '<br>');
