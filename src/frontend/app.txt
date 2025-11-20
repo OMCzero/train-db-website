@@ -7,6 +7,129 @@ let lastUpdated = null;
 let marriages = null;
 let filteredMarriagesCount = 0;
 
+// Field configuration and labels
+const FIELD_LABELS = {
+  vehicle_id: 'Vehicle ID',
+  model_common_name: 'Model',
+  name: 'Name',
+  status: 'Status',
+  delivery_date: 'Delivery Date',
+  enter_service_date: 'Entered Service',
+  notes: 'Notes',
+  full_name: 'Full Model Name',
+  manufacturer: 'Manufacturer',
+  manufacture_location: 'Manufacture Location',
+  years_manufactured: 'Years Manufactured'
+};
+
+// Helper functions for formatting values
+function isMarkV(vehicleId) {
+  return vehicleId >= 6000 && vehicleId < 7000;
+}
+
+function formatVehicleId(vehicleId, options = {}) {
+  if (vehicleId === null || vehicleId === undefined) return null;
+
+  const markV = isMarkV(vehicleId);
+  const formattedId = String(vehicleId).padStart(markV ? 4 : 3, '0');
+
+  if (markV && options.withTooltip !== false) {
+    return `<span class="info-tooltip">${formattedId}<span class="info-icon" data-train-id="${formattedId}"><span class="tooltip-text"></span></span></span>`;
+  }
+
+  return formattedId;
+}
+
+function formatStatusBadge(status) {
+  if (!status) return null;
+  const statusClass = `status-${status.toLowerCase().replace(/\s+/g, '-')}`;
+  return `<span class="status-badge ${statusClass}">${status}</span>`;
+}
+
+function formatNullValue(value, fieldKey) {
+  if (value !== null && value !== undefined && value !== '') return value;
+
+  if (fieldKey === 'delivery_date' || fieldKey === 'enter_service_date') {
+    return '<em style="color: #adb5bd;">Unknown</em>';
+  } else if (fieldKey === 'notes') {
+    return '<em style="color: #adb5bd;">None</em>';
+  } else {
+    return '<em style="color: #adb5bd;">N/A</em>';
+  }
+}
+
+function formatFieldValue(fieldKey, value, options = {}) {
+  // Handle specific field formatting
+  if (fieldKey === 'vehicle_id') {
+    const formatted = formatVehicleId(value, options);
+    if (formatted === null) return formatNullValue(null, fieldKey);
+    return formatted;
+  }
+
+  if (fieldKey === 'status') {
+    const formatted = formatStatusBadge(value);
+    if (formatted === null) return formatNullValue(null, fieldKey);
+    return formatted;
+  }
+
+  // Handle null values
+  if (value === null || value === undefined) {
+    return formatNullValue(null, fieldKey);
+  }
+
+  // Handle multi-line text fields (convert newlines to <br>)
+  if ((fieldKey === 'notes' || fieldKey === 'manufacture_location') && options.convertNewlines !== false) {
+    return String(value).replace(/\n/g, '<br>');
+  }
+
+  return value;
+}
+
+function renderTableCell(column, value) {
+  return `<td data-column="${column}">${formatFieldValue(column, value)}</td>`;
+}
+
+function formatMarriageVehicleIds(carIds) {
+  // Check if this is a Mark V marriage (all cars in 6xxx range)
+  const isMarkVMarriage = carIds.every(id => isMarkV(id));
+
+  if (isMarkVMarriage) {
+    // For Mark V, show 3-digit VCC pairs (e.g., 601/602)
+    // Calculate unique VCC pair numbers from the car IDs
+    const vccPairs = [...new Set(carIds.map(id => Math.floor(id / 10)))].sort((a, b) => a - b);
+    return vccPairs.join('/');
+  } else {
+    // For other trains, show full vehicle IDs with appropriate padding
+    const formattedIds = carIds.map(id => formatVehicleId(id, { withTooltip: false }));
+    // Use / for 2-car marriages, - for others
+    return carIds.length === 2 ? formattedIds.join('/') : formattedIds.join('-');
+  }
+}
+
+function getCommonNoteInfo(carsWithData) {
+  if (carsWithData.length === 0) {
+    return { hasCommonNote: false, hasMixedNotes: false, commonNote: null };
+  }
+
+  const firstNote = (carsWithData[0].notes || '').trim();
+
+  // Check if all cars have the same note (including all being empty)
+  const allSameNote = carsWithData.every(car => {
+    const carNote = (car.notes || '').trim();
+    return carNote === firstNote;
+  });
+
+  if (allSameNote && firstNote !== '') {
+    // All cars have the same non-empty note
+    return { hasCommonNote: true, hasMixedNotes: false, commonNote: firstNote };
+  } else if (!allSameNote) {
+    // Cars have different notes (including mix of empty and non-empty)
+    return { hasCommonNote: false, hasMixedNotes: true, commonNote: null };
+  }
+
+  return { hasCommonNote: false, hasMixedNotes: false, commonNote: null };
+}
+
 async function loadData(page = 0) {
   currentPage = page;
   const searchTerm = document.getElementById('searchInput').value;
@@ -63,20 +186,10 @@ function displayData(data) {
   // Define which columns to show in the table
   const tableColumns = ['vehicle_id', 'model_common_name', 'name', 'status', 'delivery_date', 'enter_service_date', 'notes'];
 
-  const columnLabels = {
-    vehicle_id: 'VEHICLE ID',
-    model_common_name: 'MODEL',
-    name: 'NAME',
-    status: 'STATUS',
-    delivery_date: 'DELIVERY DATE',
-    enter_service_date: 'ENTERED SERVICE',
-    notes: 'NOTES'
-  };
-
   let html = '<table><thead><tr>';
   tableColumns.forEach(col => {
-    const label = columnLabels[col] || col.replace(/_/g, ' ').toUpperCase();
-    html += `<th data-column="${col}">${label}</th>`;
+    const label = FIELD_LABELS[col] || col.replace(/_/g, ' ');
+    html += `<th data-column="${col}">${label.toUpperCase()}</th>`;
   });
   html += '</tr></thead><tbody>';
 
@@ -138,51 +251,12 @@ function displayData(data) {
 
         const firstCar = vehicleMap[firstMatchingCar].row;
 
-        // Check if this is a Mark V marriage (all cars in 6xxx range)
-        const isMarkVMarriage = carsInMarriage.every(id => id >= 6000 && id < 7000);
-
-        let carIds;
-        if (isMarkVMarriage) {
-          // For Mark V, show 3-digit VCC pairs (e.g., 601/602)
-          // Calculate unique VCC pair numbers from the car IDs
-          const vccPairs = [...new Set(carsInMarriage.map(id => Math.floor(id / 10)))].sort((a, b) => a - b);
-          carIds = vccPairs.join('/');
-        } else {
-          // For other trains, show full vehicle IDs with appropriate padding
-          const formattedIds = carsInMarriage.map(id => {
-            const isMarkV = id >= 6000 && id < 7000;
-            return String(id).padStart(isMarkV ? 4 : 3, '0');
-          });
-          // Use / for 2-car marriages, - for others
-          carIds = carsInMarriage.length === 2
-            ? formattedIds.join('/')
-            : formattedIds.join('-');
-        }
+        // Format marriage vehicle IDs
+        const carIds = formatMarriageVehicleIds(carsInMarriage);
 
         // Check if all cars in the marriage have the same note
-        let commonNote = null;
-        let hasCommonNote = false;
-        let hasMixedNotes = false;
-
         const carsWithData = carsInMarriage.map(carId => vehicleMap[carId]?.row).filter(Boolean);
-        if (carsWithData.length > 0) {
-          const firstNote = (carsWithData[0].notes || '').trim();
-
-          // Check if all cars have the same note (including all being empty)
-          const allSameNote = carsWithData.every(car => {
-            const carNote = (car.notes || '').trim();
-            return carNote === firstNote;
-          });
-
-          if (allSameNote && firstNote !== '') {
-            // All cars have the same non-empty note
-            hasCommonNote = true;
-            commonNote = firstNote;
-          } else if (!allSameNote) {
-            // Cars have different notes (including mix of empty and non-empty)
-            hasMixedNotes = true;
-          }
-        }
+        const { hasCommonNote, hasMixedNotes, commonNote } = getCommonNoteInfo(carsWithData);
 
         html += `<tr class="marriage-row" onclick="toggleMarriage(${marriageIndex})">`;
 
@@ -191,25 +265,13 @@ function displayData(data) {
           let value = '';
 
           if (col === 'vehicle_id') {
-            // Show the marriage cars list
+            // Show the marriage cars list (no formatting needed, just display)
             value = `<span class="marriage-expand-icon">▶</span>${carIds}`;
-          } else if (col === 'model_common_name') {
-            // Show model
-            value = firstCar.model_common_name;
+            html += `<td data-column="${col}">${value}</td>`;
           } else if (col === 'name') {
             // Show marriage info instead of name
             value = `Marriage ${marriage.marriage_id} (${marriage.marriage_size} cars)`;
-          } else if (col === 'status') {
-            // Show status with badge
-            value = firstCar.status;
-            if (value) {
-              const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
-              value = `<span class="status-badge ${statusClass}">${value}</span>`;
-            }
-          } else if (col === 'delivery_date') {
-            value = firstCar.delivery_date;
-          } else if (col === 'enter_service_date') {
-            value = firstCar.enter_service_date;
+            html += `<td data-column="${col}">${value}</td>`;
           } else if (col === 'notes') {
             // Show common note if all cars have the same note
             if (hasCommonNote) {
@@ -219,20 +281,11 @@ function displayData(data) {
             } else {
               value = '';
             }
+            html += `<td data-column="${col}">${formatNullValue(value, col)}</td>`;
+          } else {
+            // Use standard formatting for other fields
+            html += renderTableCell(col, firstCar[col]);
           }
-
-          // Handle null values
-          if (value === null || value === undefined || value === '') {
-            if (col === 'delivery_date' || col === 'enter_service_date') {
-              value = '<em style="color: #adb5bd;">Unknown</em>';
-            } else if (col === 'notes') {
-              value = '<em style="color: #adb5bd;">None</em>';
-            } else {
-              value = '<em style="color: #adb5bd;">N/A</em>';
-            }
-          }
-
-          html += `<td data-column="${col}">${value}</td>`;
         });
 
         html += '</tr>';
@@ -244,37 +297,7 @@ function displayData(data) {
           html += `<tr class="car-row hidden" data-marriage="${marriageIndex}" onclick="openModal(${index})">`;
 
           tableColumns.forEach(col => {
-            let value = row[col];
-
-            // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
-            if (col === 'vehicle_id' && value !== null && value !== undefined) {
-              const isMarkV = value >= 6000 && value < 7000;
-              const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
-              if (isMarkV) {
-                value = `<span class="info-tooltip">${formattedId}<span class="info-icon" data-train-id="${formattedId}"><span class="tooltip-text"></span></span></span>`;
-              } else {
-                value = formattedId;
-              }
-            }
-
-            // Format status with badge
-            if (col === 'status' && value) {
-              const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
-              value = `<span class="status-badge ${statusClass}">${value}</span>`;
-            }
-
-            // Handle null values
-            if (value === null || value === undefined) {
-              if (col === 'delivery_date' || col === 'enter_service_date') {
-                value = '<em style="color: #adb5bd;">Unknown</em>';
-              } else if (col === 'notes') {
-                value = '<em style="color: #adb5bd;">None</em>';
-              } else {
-                value = '<em style="color: #adb5bd;">N/A</em>';
-              }
-            }
-
-            html += `<td data-column="${col}">${value}</td>`;
+            html += renderTableCell(col, row[col]);
           });
           html += '</tr>';
         });
@@ -285,37 +308,7 @@ function displayData(data) {
     data.forEach((row, index) => {
       html += `<tr onclick="openModal(${index})">`;
       tableColumns.forEach(col => {
-        let value = row[col];
-
-        // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
-        if (col === 'vehicle_id' && value !== null && value !== undefined) {
-          const isMarkV = value >= 6000 && value < 7000;
-          const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
-          if (isMarkV) {
-            value = `<span class="info-tooltip">${formattedId}<span class="info-icon" data-train-id="${formattedId}"><span class="tooltip-text"></span></span></span>`;
-          } else {
-            value = formattedId;
-          }
-        }
-
-        // Format status with badge
-        if (col === 'status' && value) {
-          const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
-          value = `<span class="status-badge ${statusClass}">${value}</span>`;
-        }
-
-        // Handle null values
-        if (value === null || value === undefined) {
-          if (col === 'delivery_date' || col === 'enter_service_date') {
-            value = '<em style="color: #adb5bd;">Unknown</em>';
-          } else if (col === 'notes') {
-            value = '<em style="color: #adb5bd;">None</em>';
-          } else {
-            value = '<em style="color: #adb5bd;">N/A</em>';
-          }
-        }
-
-        html += `<td data-column="${col}">${value}</td>`;
+        html += renderTableCell(col, row[col]);
       });
       html += '</tr>';
     });
@@ -328,31 +321,22 @@ function displayData(data) {
 function updateStats() {
   const groupByMarriage = document.getElementById('groupByMarriage').checked;
 
-  let start, end, totalPages, totalItems;
+  // Count marriages or individual cars
+  const totalItems = (groupByMarriage && marriages)
+    ? (currentSearch ? filteredMarriagesCount : marriages.length)
+    : totalRecords;
 
-  if (groupByMarriage && marriages) {
-    // Count marriages (not individual cars)
-    // Use filtered count if searching
-    totalItems = currentSearch ? filteredMarriagesCount : marriages.length;
-    totalPages = Math.ceil(totalItems / pageSize);
-    start = currentPage * pageSize + 1;
-    end = Math.min((currentPage + 1) * pageSize, totalItems);
-  } else {
-    // Count individual cars
-    totalItems = totalRecords;
-    totalPages = Math.ceil(totalItems / pageSize);
-    start = currentPage * pageSize + 1;
-    end = Math.min((currentPage + 1) * pageSize, totalItems);
-  }
+  const totalPages = Math.ceil(totalItems / pageSize);
+  const start = currentPage * pageSize + 1;
+  const end = Math.min((currentPage + 1) * pageSize, totalItems);
+  const itemType = groupByMarriage ? 'marriages' : 'train cars';
 
   document.getElementById('stats').style.display = 'flex';
 
   if (currentSearch) {
-    const itemType = groupByMarriage ? 'marriages' : 'train cars';
     document.getElementById('statsInfo').textContent =
       `Showing ${totalItems} ${itemType} (filtered)`;
   } else {
-    const itemType = groupByMarriage ? 'marriages' : 'train cars';
     document.getElementById('statsInfo').textContent =
       `Showing ${start} to ${end} of ${totalItems} ${itemType}`;
   }
@@ -446,62 +430,16 @@ function openModal(index) {
     'years_manufactured'
   ];
 
-  const fieldLabels = {
-    vehicle_id: 'Vehicle ID',
-    name: 'Name',
-    status: 'Status',
-    delivery_date: 'Delivery Date',
-    enter_service_date: 'Entered Service',
-    notes: 'Notes',
-    model_common_name: 'Model',
-    full_name: 'Full Model Name',
-    manufacturer: 'Manufacturer',
-    manufacture_location: 'Manufacture Location',
-    years_manufactured: 'Years Manufactured'
-  };
-
   let html = '<div class="modal-section"><h3 class="modal-section-title">Vehicle Details</h3>';
 
   carFields.forEach(key => {
     if (!(key in row)) return;
 
-    let value = row[key];
-
-    // Format vehicle_id with leading zeros and add tooltip for Mark V (4-digit 6xxx series)
-    if (key === 'vehicle_id' && value !== null && value !== undefined) {
-      // Mark V trains (6xxx) are 4-digit, all others are 3-digit
-      const isMarkV = value >= 6000 && value < 7000;
-      const formattedId = String(value).padStart(isMarkV ? 4 : 3, '0');
-      if (isMarkV) {
-        value = `<span class="info-tooltip">${formattedId}<span class="info-icon" data-train-id="${formattedId}"><span class="tooltip-text"></span></span></span>`;
-      } else {
-        value = formattedId;
-      }
-    }
-
-    // Format status with badge
-    if (key === 'status' && value) {
-      const statusClass = `status-${value.toLowerCase().replace(/\s+/g, '-')}`;
-      value = `<span class="status-badge ${statusClass}">${value}</span>`;
-    }
-
-    // Handle null values
-    if (value === null || value === undefined) {
-      if (key === 'delivery_date' || key === 'enter_service_date') {
-        value = '<em style="color: #adb5bd;">Unknown</em>';
-      } else if (key === 'notes') {
-        value = '<em style="color: #adb5bd;">None</em>';
-      } else {
-        value = '<em style="color: #adb5bd;">N/A</em>';
-      }
-    } else if (key === 'notes') {
-      // Convert newlines to <br> tags for multi-line notes
-      value = String(value).replace(/\n/g, '<br>');
-    }
+    const value = formatFieldValue(key, row[key], { convertNewlines: true });
 
     html += `
       <div class="modal-field">
-        <div class="modal-field-label">${fieldLabels[key] || key}</div>
+        <div class="modal-field-label">${FIELD_LABELS[key] || key}</div>
         <div class="modal-field-value">${value}</div>
       </div>
     `;
@@ -512,19 +450,11 @@ function openModal(index) {
   modelFields.forEach(key => {
     if (!(key in row)) return;
 
-    let value = row[key];
-
-    // Handle null values
-    if (value === null || value === undefined) {
-      value = '<em style="color: #adb5bd;">N/A</em>';
-    } else if (key === 'manufacture_location' || key === 'notes') {
-      // Convert newlines to <br> tags for multi-line fields
-      value = String(value).replace(/\n/g, '<br>');
-    }
+    const value = formatFieldValue(key, row[key], { convertNewlines: true });
 
     html += `
       <div class="modal-field">
-        <div class="modal-field-label">${fieldLabels[key] || key}</div>
+        <div class="modal-field-label">${FIELD_LABELS[key] || key}</div>
         <div class="modal-field-value">${value}</div>
       </div>
     `;
