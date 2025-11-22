@@ -7,7 +7,6 @@ function addSecurityHeaders(response: Response): Response {
   const headers = new Headers(response.headers);
   headers.set("X-Content-Type-Options", "nosniff");
   headers.set("X-Frame-Options", "DENY");
-  headers.set("X-XSS-Protection", "1; mode=block");
   headers.set("Referrer-Policy", "strict-origin-when-cross-origin");
 
   return new Response(response.body, {
@@ -29,8 +28,20 @@ export default {
       const host = request.headers.get("Host") || url.host;
 
       // If Origin or Referer is present, it must be from our domain
-      const hasInvalidOrigin = origin && origin !== `https://${host}` && origin !== `http://${host}`;
-      const hasInvalidReferer = referer && !referer.startsWith(`https://${host}/`) && !referer.startsWith(`http://${host}/`);
+      // Only allow HTTP origin in development environment for local testing
+      const isDevelopment = host === "localhost" || host.startsWith("localhost:") || 
+                            host === "127.0.0.1" || host.startsWith("127.0.0.1:") ||
+                            host === "::1" || host === "[::1]" || host.startsWith("[::1]:");
+      const hasInvalidOrigin = origin && (
+        isDevelopment
+          ? (origin !== `https://${host}` && origin !== `http://${host}`)
+          : (origin !== `https://${host}`)
+      );
+      const hasInvalidReferer = referer && (
+        isDevelopment
+          ? (!referer.startsWith(`https://${host}/`) && !referer.startsWith(`http://${host}/`))
+          : (!referer.startsWith(`https://${host}/`))
+      );
 
       if (hasInvalidOrigin || hasInvalidReferer) {
         const response = Response.json(
