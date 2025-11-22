@@ -31,7 +31,7 @@ export default {
       // Only allow HTTP origin in development environment for local testing
       const isDevelopment = host === "localhost" || host.startsWith("localhost:") || 
                             host === "127.0.0.1" || host.startsWith("127.0.0.1:") ||
-                            host === "::1" || host.startsWith("[::1]:");
+                            host === "::1" || host === "[::1]" || host.startsWith("[::1]:");
       const hasInvalidOrigin = origin && (
         isDevelopment
           ? (origin !== `https://${host}` && origin !== `http://${host}`)
