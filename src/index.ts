@@ -29,7 +29,8 @@ export default {
 
       // If Origin or Referer is present, it must be from our domain
       // Only allow HTTP origin in development environment for local testing
-      const isDevelopment = host.includes("localhost") || host.includes("127.0.0.1");
+      const isDevelopment = host === "localhost" || host.startsWith("localhost:") || 
+                            host === "127.0.0.1" || host.startsWith("127.0.0.1:");
       const hasInvalidOrigin = origin && (
         isDevelopment
           ? (origin !== `https://${host}` && origin !== `http://${host}`)
