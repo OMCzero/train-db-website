@@ -29,15 +29,17 @@ export default {
 
       // If Origin or Referer is present, it must be from our domain
       // Only allow HTTP origin in development environment for local testing
-      const isDevelopment = (env && 'NODE_ENV' in env) ? env.NODE_ENV === "development" : false;
-      const allowedOrigin = isDevelopment
-        ? (origin === `https://${host}` || origin === `http://${host}`)
-        : (origin === `https://${host}`);
-      const hasInvalidOrigin = origin && !allowedOrigin;
-      const allowedReferer = isDevelopment
-        ? (referer && (referer.startsWith(`https://${host}/`) || referer.startsWith(`http://${host}/`)))
-        : (referer && referer.startsWith(`https://${host}/`));
-      const hasInvalidReferer = referer && !allowedReferer;
+      const isDevelopment = host.includes("localhost") || host.includes("127.0.0.1");
+      const hasInvalidOrigin = origin && (
+        isDevelopment
+          ? (origin !== `https://${host}` && origin !== `http://${host}`)
+          : (origin !== `https://${host}`)
+      );
+      const hasInvalidReferer = referer && (
+        isDevelopment
+          ? (!referer.startsWith(`https://${host}/`) && !referer.startsWith(`http://${host}/`))
+          : (!referer.startsWith(`https://${host}/`))
+      );
 
       if (hasInvalidOrigin || hasInvalidReferer) {
         const response = Response.json(
