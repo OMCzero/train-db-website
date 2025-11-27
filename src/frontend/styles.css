@@ -295,6 +295,11 @@ tbody tr:hover {
   color: #0c5460;
 }
 
+.status-in-maintenance {
+  background: #ffe5cc;
+  color: #cc5500;
+}
+
 .status-retired {
   background: #e2e3e5;
   color: #383d41;
